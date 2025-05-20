@@ -10,8 +10,14 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.fernet import Fernet
 from cryptography.hazmat.backends import default_backend
+from cryptography.exceptions import InvalidKey, InvalidSignature
+
+class CryptoError(Exception):
+    """Crypto operation errors"""
+    pass
 
 class Crypto:
+    """Cryptographic operations handler"""
     def __init__(self, key: Optional[bytes] = None, key_size: int = 2048) -> None:
         """Initialize crypto with optional key
 
@@ -120,6 +126,8 @@ class Crypto:
             raise
 
     def encrypt(self, data: Union[str, bytes], peer_id: Optional[str] = None) -> Union[bytes, str]:
+        if not data:
+            raise CryptoError("Empty data provided for encryption")
         """Encrypt data using symmetric or session key
 
         Args:
@@ -166,6 +174,8 @@ class Crypto:
             raise
 
     def decrypt(self, encrypted_data: Union[str, bytes], peer_id: Optional[str] = None) -> bytes:
+        if not encrypted_data:
+            raise CryptoError("Empty data provided for decryption")
         """Decrypt data using symmetric or session key
 
         Args:
@@ -221,6 +231,8 @@ class Crypto:
             raise
 
     def establish_session(self, peer_id: str, peer_public_key: str) -> str:
+        if not peer_id or not peer_public_key:
+            raise CryptoError("Invalid peer ID or public key")
         """Establish encrypted session with peer
 
         Args:
@@ -255,6 +267,8 @@ class Crypto:
             raise
 
     def receive_session_key(self, peer_id: str, encrypted_key: str) -> None:
+        if not peer_id or not encrypted_key:
+            raise CryptoError("Invalid peer ID or encrypted key")
         """Receive and decrypt session key from peer
 
         Args:
@@ -278,6 +292,8 @@ class Crypto:
             raise
 
     def derive_key(self, password: str, salt: Optional[bytes] = None) -> Tuple[bytes, bytes]:
+        if not password:
+            raise CryptoError("Empty password provided")
         """Derive key from password
 
         Args:
@@ -307,6 +323,8 @@ class Crypto:
             raise
 
     def verify_key(self, password: str, key: bytes, salt: bytes) -> bool:
+        if not password or not key or not salt:
+            raise CryptoError("Invalid password, key or salt")
         """Verify password against key
 
         Args:
@@ -332,7 +350,11 @@ class Crypto:
             return False
 
     def encrypt_large_file(self, input_path: str, output_path: str,
-                       chunk_size: int = 64 * 1024) -> bool:
+                        chunk_size: int = 64 * 1024) -> bool:
+        if not input_path or not output_path:
+            raise CryptoError("Invalid input or output path")
+        if not os.path.exists(input_path):
+            raise CryptoError(f"Input file not found: {input_path}")
         """Encrypt a large file in chunks
 
         Args:
@@ -384,7 +406,11 @@ class Crypto:
             return False
 
     def decrypt_large_file(self, input_path: str, output_path: str,
-                       chunk_size: int = 64 * 1024) -> bool:
+                        chunk_size: int = 64 * 1024) -> bool:
+        if not input_path or not output_path:
+            raise CryptoError("Invalid input or output path")
+        if not os.path.exists(input_path):
+            raise CryptoError(f"Input file not found: {input_path}")
         """Decrypt a large file in chunks
 
         Args:

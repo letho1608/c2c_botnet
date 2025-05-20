@@ -25,6 +25,7 @@ from .advanced_protection import AdvancedProtection
 from .anti_vm import AntiVM
 from .code_obfuscation import CodeObfuscator
 from .network_protection import NetworkProtection
+from .crypto import Crypto, CryptoError
 
 class SecurityError(Exception):
     """Security related errors"""
@@ -52,6 +53,9 @@ class SecurityManager:
         self.code_obfuscator = CodeObfuscator()
         self.network_protection = NetworkProtection()
         
+        # Initialize crypto
+        self.crypto = Crypto()
+        
         self.sessions: Dict[str, Dict[str, Any]] = {}
         self.protected_data: Dict[str, Tuple[int, int]] = {}  # id: (address, size)
         
@@ -77,9 +81,6 @@ class SecurityManager:
             self.memory_protection.start_protection()
             self.advanced_protection.start_protection()
             self.network_protection.start_protection()
-            
-            # Initialize crypto
-            self._init_crypto()
             
             # Initialize SSL
             self._init_ssl()
@@ -213,3 +214,48 @@ class SecurityManager:
             domain: Domain to block
         """
         self.network_protection.block_domain(domain)
+        
+    def encrypt_data(self, data: Union[str, bytes], peer_id: Optional[str] = None) -> Union[bytes, str]:
+        """Encrypt data using crypto module
+        
+        Args:
+            data: Data to encrypt
+            peer_id: Optional peer ID for session encryption
+            
+        Returns:
+            Encrypted data
+        """
+        return self.crypto.encrypt(data, peer_id)
+        
+    def decrypt_data(self, encrypted_data: Union[str, bytes], peer_id: Optional[str] = None) -> bytes:
+        """Decrypt data using crypto module
+        
+        Args:
+            encrypted_data: Data to decrypt
+            peer_id: Optional peer ID for session decryption
+            
+        Returns:
+            Decrypted data
+        """
+        return self.crypto.decrypt(encrypted_data, peer_id)
+        
+    def establish_crypto_session(self, peer_id: str, peer_public_key: str) -> str:
+        """Establish encrypted session with peer
+        
+        Args:
+            peer_id: Peer identifier
+            peer_public_key: Peer's public key
+            
+        Returns:
+            Encrypted session key
+        """
+        return self.crypto.establish_session(peer_id, peer_public_key)
+        
+    def receive_crypto_session(self, peer_id: str, encrypted_key: str) -> None:
+        """Receive encrypted session from peer
+        
+        Args:
+            peer_id: Peer identifier
+            encrypted_key: Encrypted session key
+        """
+        self.crypto.receive_session_key(peer_id, encrypted_key)
