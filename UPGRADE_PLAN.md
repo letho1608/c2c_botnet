@@ -132,10 +132,13 @@ graph TD
 - [ ] Quản lý network bandwidth
 
 ### 6.2 Code Optimization
-- [ ] Refactor legacy code
+- [x] Refactor legacy code:
+  - Tích hợp chức năng mã hóa vào SecurityManager
+  - Loại bỏ các module trùng lặp
+  - Cải thiện error handling
 - [ ] Implement caching
 - [ ] Optimize database queries
-- [ ] Remove redundant operations
+- [ ] Cải thiện hiệu năng mã hóa
 
 ### 6.3 Scalability
 - [ ] Load balancing
@@ -146,9 +149,12 @@ graph TD
 ## 7. Lộ Trình Triển Khai
 
 ### Phase 1 - Tuần 1-2
-- Nâng cấp core systems
-- Cải thiện spreading mechanism
-- Tối ưu data collection
+- [x] Nâng cấp core systems:
+  - Tối ưu hóa module bảo mật
+  - Cải thiện quản lý mã hóa
+  - Loại bỏ code trùng lặp
+- [ ] Cải thiện spreading mechanism
+- [ ] Tối ưu data collection
 
 ### Phase 2 - Tuần 3-4
 - Implement stealth features
