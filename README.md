@@ -169,9 +169,8 @@ d:\Code\c&c server\
 │   ├── signatures.yaml # Chữ ký nhận dạng
 │   └── spreading.py    # Phương thức lây lan
 │
-├── payload/            # Client modules  
+├── payload/            # Client modules
 │   └── modules/
-│       ├── advanced_keylogger.py # Keylogger nâng cao
 │       ├── anti_analysis.py      # Chống phân tích
 │       ├── browser_harvester.py  # Thu thập dữ liệu trình duyệt
 │       ├── credential_harvester.py # Thu thập thông tin đăng nhập
@@ -189,7 +188,6 @@ d:\Code\c&c server\
 │       └── wifi_harvester.py     # Thu thập thông tin WiFi
 │
 └── utils/              # Utilities
-    ├── advanced_crypto.py        # Mã hóa nâng cao
     ├── advanced_protection.py    # Bảo vệ nâng cao
     ├── anti_vm.py                # Phát hiện môi trường ảo hóa
     ├── cert_pinning.py           # Gắn chứng chỉ
