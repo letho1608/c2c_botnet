@@ -1,0 +1,60 @@
+# Vulnerability Signatures Database
+# Format:
+# signature_id:
+#   cve_id: CVE ID 
+#   description: Description of the vulnerability
+#   severity: low/medium/high/critical
+#   cvss_score: CVSS Base Score
+#   affected_versions: List of affected versions
+#   confidence: Detection confidence score (0.0-1.0)
+
+# SSH Vulnerabilities
+weak-ssh-kex:
+  cve_id: CVE-2016-0701
+  description: Weak Diffie-Hellman key exchange method detected that could allow man-in-the-middle attacks
+  severity: high
+  cvss_score: 7.5
+  affected_versions: []
+  confidence: 0.9
+
+weak-ssh-ciphers:
+  cve_id: CVE-2016-2183
+  description: Weak CBC mode ciphers detected that are vulnerable to padding oracle attacks
+  severity: medium
+  cvss_score: 5.9
+  affected_versions: []
+  confidence: 0.9
+
+# FTP Vulnerabilities
+ftp-anon:
+  cve_id: CVE-1999-0497
+  description: Anonymous FTP login allowed
+  severity: medium
+  cvss_score: 5.0
+  affected_versions: []
+  confidence: 1.0
+
+ftp-cleartext:
+  cve_id: CVE-1999-0502
+  description: FTP service transmits authentication credentials in cleartext
+  severity: medium 
+  cvss_score: 6.4
+  affected_versions: []
+  confidence: 1.0
+
+# SMTP Vulnerabilities
+smtp-vrfy:
+  cve_id: CVE-1999-0531
+  description: SMTP VRFY command enabled - can be used to enumerate valid users
+  severity: low
+  cvss_score: 4.3
+  affected_versions: []
+  confidence: 0.9
+
+smtp-open-relay:
+  cve_id: CVE-1999-0512
+  description: SMTP server configured as open relay
+  severity: high
+  cvss_score: 8.5
+  affected_versions: []
+  confidence: 0.8

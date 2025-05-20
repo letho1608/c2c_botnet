@@ -1,0 +1,35 @@
+combined-cnc-server/
+│
+├── server.py           # Server chính
+├── client.py          # Client/Bot
+├── requirements.txt    # Dependencies
+├── README.md          # Hướng dẫn
+│
+├── core/              # Các module cốt lõi của server
+│   ├── __init__.py
+│   ├── server.py      # Server core từ FleX
+│   ├── console.py     # Console UI
+│   └── utilities.py   # Tiện ích chung
+│
+├── botnet/            # Module quản lý botnet
+│   ├── __init__.py
+│   ├── manager.py     # Quản lý bot từ CnC-Botnet
+│   └── connection.py  # Xử lý kết nối
+│
+├── payload/           # Các module thực thi trên client
+│   ├── __init__.py
+│   ├── keylogger.py  # Keylogger từ FleX
+│   ├── screenshot.py # Screenshot từ FleX
+│   ├── shell.py      # Remote shell
+│   └── sysinfo.py    # Thu thập thông tin hệ thống
+│
+├── network/           # Module mạng và lây lan
+│   ├── __init__.py
+│   ├── scanner.py    # Scanner từ NetWorm
+│   ├── spreader.py   # Cơ chế lây lan
+│   └── persistence.py # Duy trì kết nối
+│
+└── utils/            # Tiện ích chung
+    ├── __init__.py
+    ├── crypto.py     # Mã hóa/giải mã
+    └── config.py     # Cấu hình

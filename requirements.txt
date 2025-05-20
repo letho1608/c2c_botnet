@@ -1,0 +1,11 @@
+flask==2.0.1
+flask-socketio==5.1.1
+flask-login==0.5.0
+wmi==1.5.1
+eventlet==0.33.0
+python-engineio==4.2.1
+python-socketio==5.4.0
+pywin32==303
+plotly==5.3.1
+reportlab==3.6.2
+pyotp==2.6.0
