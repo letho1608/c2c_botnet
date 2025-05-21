@@ -5,34 +5,69 @@ import hmac
 import hashlib
 import logging
 import platform
-from typing import Dict, Set, Optional
+import threading
+import time
+from typing import Dict, Set, Optional, List
 from pathlib import Path
+from functools import lru_cache
+from concurrent.futures import ThreadPoolExecutor
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 import psutil
 import win32api
 import win32security
 
+class FileChangeHandler(FileSystemEventHandler):
+    def __init__(self, checker: 'IntegrityChecker'):
+        self.checker = checker
+        
+    def on_modified(self, event):
+        if not event.is_directory:
+            path = Path(event.src_path).as_posix()
+            if path in self.checker.critical_files:
+                self.checker.logger.warning(f"File modified: {path}")
+                self.checker.file_changed.add(path)
+
 class IntegrityChecker:
-    def __init__(self, hash_file: str = "file_hashes.txt") -> None:
+    def __init__(self, hash_file: str = "file_hashes.txt",
+                max_workers: int = 4) -> None:
         """Initialize integrity checker
         
         Args:
             hash_file (str): File containing file hashes
+            max_workers (int): Maximum number of worker threads
         """
         self.hash_file = Path(hash_file)
         self.hashes: Dict[str, str] = {}
         self.logger = logging.getLogger('security')
+        self.thread_pool = ThreadPoolExecutor(max_workers=max_workers)
         
         # Files to monitor
         self.critical_files = {
             'client.py',
             'server.py',
             'utils/security_manager.py',
-            'utils/cert_pinning.py',  
+            'utils/cert_pinning.py',
             'utils/integrity.py'
         }
         
+        # Track modified files
+        self.file_changed: Set[str] = set()
+        
+        # Setup file watching
+        self.observer = Observer()
+        self.observer.schedule(
+            FileChangeHandler(self),
+            path='.',
+            recursive=True
+        )
+        self.observer.start()
+        
         # Load stored hashes
         self._load_hashes()
+        
+        # Calculate initial hashes
+        self.update_hashes()
         
     def _load_hashes(self) -> None:
         """Load stored file hashes"""
@@ -55,6 +90,7 @@ class IntegrityChecker:
         except Exception as e:
             self.logger.error(f"Error saving hashes: {str(e)}")
             
+    @lru_cache(maxsize=128)
     def calculate_file_hash(self, file_path: str) -> Optional[str]:
         """Calculate SHA256 hash of file
         
@@ -65,14 +101,22 @@ class IntegrityChecker:
             Optional[str]: File hash or None if error
         """
         try:
+            if not os.path.exists(file_path):
+                return None
+                
+            # Get file stats for cache invalidation
+            stats = os.stat(file_path)
+            cache_key = f"{file_path}:{stats.st_mtime}:{stats.st_size}"
+            
+            # Calculate hash in chunks
             sha256 = hashlib.sha256()
             with open(file_path, 'rb') as f:
-                while True:
-                    data = f.read(65536)  # Read in 64kb chunks
-                    if not data:
-                        break
-                    sha256.update(data)
+                # Use memoryview for efficient chunk processing
+                for chunk in iter(lambda: f.read(65536), b''):
+                    sha256.update(chunk)
+                    
             return sha256.hexdigest()
+            
         except Exception as e:
             self.logger.error(f"Error calculating hash for {file_path}: {str(e)}")
             return None
@@ -80,12 +124,32 @@ class IntegrityChecker:
     def update_hashes(self) -> None:
         """Update stored hashes for all critical files"""
         try:
+            # Clear cache
+            self.calculate_file_hash.cache_clear()
+            
+            # Calculate hashes in parallel
+            futures = []
             for file_path in self.critical_files:
                 if Path(file_path).exists():
-                    file_hash = self.calculate_file_hash(file_path)
+                    future = self.thread_pool.submit(
+                        self.calculate_file_hash,
+                        file_path
+                    )
+                    futures.append((file_path, future))
+                    
+            # Collect results
+            for file_path, future in futures:
+                try:
+                    file_hash = future.result()
                     if file_hash:
                         self.hashes[file_path] = file_hash
+                except Exception as e:
+                    self.logger.error(
+                        f"Error calculating hash for {file_path}: {str(e)}"
+                    )
+                    
             self.save_hashes()
+            
         except Exception as e:
             self.logger.error(f"Error updating hashes: {str(e)}")
             
@@ -119,11 +183,33 @@ class IntegrityChecker:
             bool: True if all files are unmodified
         """
         try:
+            # Check for files modified since last check
+            if self.file_changed:
+                for path in self.file_changed:
+                    self.logger.warning(f"File modified: {path}")
+                self.file_changed.clear()
+                return False
+                
+            # Verify files in parallel
+            futures = []
             for file_path in self.critical_files:
-                if not self.verify_file(file_path):
-                    self.logger.warning(f"Modified file detected: {file_path}")
+                future = self.thread_pool.submit(self.verify_file, file_path)
+                futures.append((file_path, future))
+                
+            # Check results
+            for file_path, future in futures:
+                try:
+                    if not future.result():
+                        self.logger.warning(f"Modified file detected: {file_path}")
+                        return False
+                except Exception as e:
+                    self.logger.error(
+                        f"Error verifying {file_path}: {str(e)}"
+                    )
                     return False
+                    
             return True
+            
         except Exception as e:
             self.logger.error(f"Error verifying files: {str(e)}")
             return False
@@ -247,8 +333,24 @@ class IntegrityChecker:
         Returns:
             bool: True if all checks pass
         """
-        return all([
-            self.verify_all(),
-            self.check_permissions(),
-            self.verify_memory()
-        ])
+        try:
+            # Run checks in parallel
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                futures = [
+                    executor.submit(self.verify_all),
+                    executor.submit(self.check_permissions),
+                    executor.submit(self.verify_memory)
+                ]
+                
+                results = [future.result() for future in futures]
+                return all(results)
+                
+        except Exception as e:
+            self.logger.error(f"Self check error: {str(e)}")
+            return False
+            
+    def cleanup(self):
+        """Cleanup resources"""
+        self.observer.stop()
+        self.observer.join()
+        self.thread_pool.shutdown()

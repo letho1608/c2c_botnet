@@ -11,13 +11,12 @@ Hệ thống này được thiết kế để nghiên cứu về an ninh mạng 
 ## Tính năng
 
 ### Server
-- Quản lý và điều khiển nhiều bot đồng thời
-- Giao diện console tương tác với nhiều lệnh
-- Hỗ trợ kết nối SSH với mã hóa
+- Quản lý và điều khiển nhiều bot đồng thời qua console
+- Hỗ trợ kết nối mã hóa SSL/TLS
 - Theo dõi trạng thái bot theo thời gian thực
-- Quản lý dữ liệu thu thập từ bot
-- Quét và tìm kiếm mục tiêu mới
-- Phân tích mạng và thông tin hệ thống
+- Thu thập và phân tích dữ liệu từ bot
+- Quét và lây lan tự động trong mạng
+- Phân tích mục tiêu và điều phối tấn công
 
 ### Client/Bot
 1. Chức năng Theo dõi:
@@ -156,11 +155,6 @@ d:\Code\c&c server\
 ├── botnet/             # Quản lý botnet
 │   └── manager.py      # Bot Manager
 │
-├── gui/                # Giao diện đồ họa
-│   ├── interface.py    # Giao diện desktop
-│   ├── web_interface.py # Giao diện web
-│   └── templates/      # Templates HTML
-│       └── dashboard.html # Dashboard chính
 │
 ├── network/            # Network & Spreading
 │   ├── scanner.py      # Network Scanner
@@ -242,9 +236,10 @@ Dự án có cấu trúc mô-đun hóa, cho phép dễ dàng mở rộng và th�
    - Mở rộng logic xử lý trong `core/`
    - Thêm lệnh mới vào console trong `core/console.py`
 
-3. **Cải thiện UI**:
-   - Phát triển giao diện trong `gui/`
-   - Tùy chỉnh dashboard và báo cáo
+3. **Cải thiện chức năng**:
+   - Thêm các phương thức tấn công mới
+   - Tối ưu hiệu năng và bảo mật
+   - Nâng cao khả năng tự động hóa
 
 ## Giấy phép
 Dự án được phân phối dưới giấy phép MIT.

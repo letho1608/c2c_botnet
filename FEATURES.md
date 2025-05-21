@@ -86,15 +86,23 @@
 - Tìm đường đi tối ưu
 - Theo dõi thay đổi topology
 
-## V. Giao diện Điều khiển
+## V. Giao diện Command Line
 
-### 1. Console UI
-- Giao diện dòng lệnh tương tác
-- Điều khiển trực tiếp các bot
-- Quản lý tác vụ và lập lịch
-- Theo dõi trạng thái real-time
+### 1. Interactive Console
+- Giao diện dòng lệnh tương tác cao cấp
+- Command history và auto-completion
+- Colored output cho trạng thái và cảnh báo
+- Real-time monitoring qua console
+- Hỗ trợ scripting và batch commands
 
-### 2. Các Lệnh Chính
+### 2. Quản lý Bot Nâng cao
+- Grouping và tagging bot linh hoạt
+- Load balancing giữa các nhóm bot
+- Health monitoring và auto-recovery
+- Resource usage optimization
+- Advanced bot scoring system
+
+### 3. Các Lệnh Chính
 ```bash
 # Quản lý Bot
 list                    # Hiển thị danh sách bot
@@ -126,13 +134,45 @@ persist install       # Cài đặt persistence
 cleanup              # Xóa dấu vết
 ```
 
-### 3. Tính năng Giám sát
-- Theo dõi trạng thái bot
-- Giám sát tài nguyên hệ thống
-- Cảnh báo sự kiện bất thường
-- Báo cáo hoạt động
+### 4. Advanced Monitoring
+- Performance metrics và health scoring
+- Resource usage tracking và optimization
+- Automated recovery mechanisms
+- Attack success rate monitoring
+- Network traffic analysis
+- Behavior anomaly detection
+- Detailed activity logging
+- Real-time alert system
 
-## VI. Cách Sử dụng
+## VI. WiFi Attack Features
+
+### 1. WiFi Scanning
+- Multi-channel scanning
+- Client enumeration
+- WPS detection
+- Signal strength analysis
+- Vendor identification
+- Hidden network detection
+
+### 2. Attack Methods
+- WPS Pixie Dust attack
+- WPS PIN bruteforce
+- WPA/WPA2 handshake capture
+- Evil twin attacks
+- Client deauthentication
+- PMKID attacks
+- Rogue AP deployment
+
+### 3. Automated Operations
+- Target scoring và prioritization
+- Multi-vector attack chains
+- Parallel attack execution
+- Credential harvesting
+- Client profiling
+- Auto payload generation
+- Stealth mode operations
+
+## VII. Cách Sử dụng
 
 ### 1. Khởi động Server
 ```bash

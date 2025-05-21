@@ -7,9 +7,12 @@ import hashlib
 import logging
 import threading
 import time
-from typing import Dict, Optional, Tuple, Any, Union
+import weakref
+from functools import lru_cache
+from typing import Dict, Optional, Tuple, Any, Union, Set
 from pathlib import Path
 from datetime import datetime
+from contextlib import contextmanager
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
@@ -56,8 +59,9 @@ class SecurityManager:
         # Initialize crypto
         self.crypto = Crypto()
         
-        self.sessions: Dict[str, Dict[str, Any]] = {}
-        self.protected_data: Dict[str, Tuple[int, int]] = {}  # id: (address, size)
+        # Sử dụng weakref để quản lý sessions và protected_data
+        self.sessions: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
+        self.protected_data: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
         
         # Protection settings
         self.check_interval = 300  # 5 minutes
@@ -89,8 +93,8 @@ class SecurityManager:
             self._start_integrity_checking()
             
         except Exception as e:
-            self.logger.error(f"Security initialization error: {str(e)}")
-            raise
+            self.logger.exception("Security initialization error")
+            raise SecurityError(f"Failed to initialize security: {e}")
             
     def protect_data(self, data_id: str, data: bytes) -> bool:
         """Protect sensitive data in memory
@@ -145,6 +149,7 @@ class SecurityManager:
             self.logger.error(f"Error unprotecting data {data_id}: {str(e)}")
             return None
             
+    @lru_cache(maxsize=1000)
     def verify_connection(self, address: str, port: int) -> bool:
         """Verify if connection should be allowed
         
@@ -181,23 +186,36 @@ class SecurityManager:
             self.logger.error(f"Obfuscation error: {str(e)}")
             return False
             
+    @contextmanager
+    def protection_context(self):
+        """Context manager for handling protections"""
+        try:
+            yield
+        finally:
+            self.cleanup()
+
     def cleanup(self) -> None:
         """Clean up all protected resources"""
         try:
             # Stop protections
-            self.memory_protection.stop_protection()
-            self.advanced_protection.stop_protection()
-            self.network_protection.stop_protection()
+            for protection in (self.memory_protection,
+                             self.advanced_protection,
+                             self.network_protection):
+                try:
+                    protection.stop_protection()
+                except Exception as e:
+                    self.logger.warning(f"Failed to stop {protection.__class__.__name__}: {e}")
             
             # Clear protected data
             for data_id in list(self.protected_data.keys()):
                 self.unprotect_data(data_id)
-                
-            # Clean up sessions
-            self.cleanup_sessions()
+            
+            # Clean up sessions and cache
+            self.sessions.clear()
+            self.verify_connection.cache_clear()
             
         except Exception as e:
-            self.logger.error(f"Cleanup error: {str(e)}")
+            self.logger.exception("Cleanup error")
             
     def block_ip(self, address: str) -> None:
         """Block IP address

@@ -3,6 +3,7 @@ import os
 import base64
 import json
 import logging
+import time
 from typing import Dict, Optional, Tuple, Union, Any
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import hashes, serialization
@@ -25,12 +26,17 @@ class Crypto:
             key (Optional[bytes], optional): Symmetric encryption key. Defaults to None.
             key_size (int, optional): RSA key size in bits. Defaults to 2048.
         """
+        if key_size < 2048:
+            raise CryptoError("Key size must be at least 2048 bits")
+            
         self.backend = default_backend()
         self.logger = logging.getLogger(__name__)
         self.key_size = key_size
-
+        
         # Load or generate symmetric key
         if key:
+            if len(key) != 32:
+                raise CryptoError("Key must be 32 bytes")
             self.key = key
         else:
             self.key = self._generate_key()
@@ -41,8 +47,9 @@ class Crypto:
         self.public_key = None
         self._load_or_generate_keys()
 
-        # Session keys for peers
-        self.session_keys: Dict[str, bytes] = {}
+        # Session keys for peers with TTL
+        self.session_keys: Dict[str, Tuple[bytes, float]] = {}
+        self._last_cleanup = time.time()
 
     def _load_or_generate_keys(self) -> None:
         """Load existing RSA keys or generate new ones"""
@@ -126,8 +133,6 @@ class Crypto:
             raise
 
     def encrypt(self, data: Union[str, bytes], peer_id: Optional[str] = None) -> Union[bytes, str]:
-        if not data:
-            raise CryptoError("Empty data provided for encryption")
         """Encrypt data using symmetric or session key
 
         Args:
@@ -137,6 +142,11 @@ class Crypto:
         Returns:
             Union[bytes, str]: Encrypted data
         """
+        if not data:
+            raise CryptoError("Empty data provided for encryption")
+            
+        # Cleanup expired sessions
+        self._cleanup_expired_sessions()
         try:
             # Convert string to bytes if needed
             if isinstance(data, str):
@@ -174,8 +184,6 @@ class Crypto:
             raise
 
     def decrypt(self, encrypted_data: Union[str, bytes], peer_id: Optional[str] = None) -> bytes:
-        if not encrypted_data:
-            raise CryptoError("Empty data provided for decryption")
         """Decrypt data using symmetric or session key
 
         Args:
@@ -185,6 +193,11 @@ class Crypto:
         Returns:
             bytes: Decrypted data
         """
+        if not encrypted_data:
+            raise CryptoError("Empty data provided for decryption")
+            
+        # Cleanup expired sessions
+        self._cleanup_expired_sessions()
         try:
             if peer_id:
                 # Use session key decryption
@@ -349,36 +362,63 @@ class Crypto:
         except Exception:
             return False
 
-    def encrypt_large_file(self, input_path: str, output_path: str,
-                        chunk_size: int = 64 * 1024) -> bool:
-        if not input_path or not output_path:
-            raise CryptoError("Invalid input or output path")
-        if not os.path.exists(input_path):
-            raise CryptoError(f"Input file not found: {input_path}")
-        """Encrypt a large file in chunks
+    def _cleanup_expired_sessions(self) -> None:
+        """Remove expired session keys"""
+        current_time = time.time()
+        # Cleanup every 5 minutes
+        if current_time - self._last_cleanup < 300:
+            return
+            
+        expired = []
+        for peer_id, (_, expiry) in self.session_keys.items():
+            if current_time > expiry:
+                expired.append(peer_id)
+                
+        for peer_id in expired:
+            del self.session_keys[peer_id]
+            
+        self._last_cleanup = current_time
 
-        Args:
-            input_path (str): Path to input file
-            output_path (str): Path to save encrypted file 
-            chunk_size (int, optional): Chunk size in bytes. Defaults to 64KB.
-
-        Returns:
-            bool: True if successful
-        """
+    @contextmanager
+    def _file_encryption_context(self, mode: str):
+        """Context manager for file encryption/decryption"""
+        cipher = None
         try:
-            # Generate random IV
+            # Generate IV and create cipher
             iv = os.urandom(16)
-
-            # Create AES cipher
             cipher = Cipher(
                 algorithms.AES(self.key),
                 modes.CBC(iv),
                 backend=self.backend
             )
-            encryptor = cipher.encryptor()
+            yield cipher, iv
+        finally:
+            if cipher:
+                # Ensure cipher is properly closed
+                del cipher
 
-            with open(input_path, 'rb') as in_file, \
+    def encrypt_large_file(self, input_path: str, output_path: str,
+                        chunk_size: int = 64 * 1024) -> bool:
+        """Encrypt a large file in chunks
+
+        Args:
+            input_path (str): Path to input file
+            output_path (str): Path to save encrypted file
+            chunk_size (int, optional): Chunk size in bytes. Defaults to 64KB.
+
+        Returns:
+            bool: True if successful
+        """
+        if not input_path or not output_path:
+            raise CryptoError("Invalid input or output path")
+        if not os.path.exists(input_path):
+            raise CryptoError(f"Input file not found: {input_path}")
+        try:
+            with self._file_encryption_context('encrypt') as (cipher, iv), \
+                 open(input_path, 'rb') as in_file, \
                  open(output_path, 'wb') as out_file:
+                
+                encryptor = cipher.encryptor()
                 # Write IV
                 out_file.write(iv)
 
@@ -407,10 +447,6 @@ class Crypto:
 
     def decrypt_large_file(self, input_path: str, output_path: str,
                         chunk_size: int = 64 * 1024) -> bool:
-        if not input_path or not output_path:
-            raise CryptoError("Invalid input or output path")
-        if not os.path.exists(input_path):
-            raise CryptoError(f"Input file not found: {input_path}")
         """Decrypt a large file in chunks
 
         Args:
@@ -421,37 +457,58 @@ class Crypto:
         Returns:
             bool: True if successful
         """
+        if not input_path or not output_path:
+            raise CryptoError("Invalid input or output path")
+        if not os.path.exists(input_path):
+            raise CryptoError(f"Input file not found: {input_path}")
+            
         try:
-            with open(input_path, 'rb') as in_file, \
-                 open(output_path, 'wb') as out_file:
-                # Read IV
+            with open(input_path, 'rb') as in_file:
+                # Read IV first
                 iv = in_file.read(16)
+                if len(iv) != 16:
+                    raise CryptoError("Invalid IV in encrypted file")
 
-                # Create AES cipher
-                cipher = Cipher(
-                    algorithms.AES(self.key),
-                    modes.CBC(iv),
-                    backend=self.backend
-                )
-                decryptor = cipher.decryptor()
+                with self._file_encryption_context('decrypt') as (cipher, _), \
+                     open(output_path, 'wb') as out_file:
+                    
+                    # Override IV from context with the one from file
+                    cipher = Cipher(
+                        algorithms.AES(self.key),
+                        modes.CBC(iv),
+                        backend=self.backend
+                    )
+                    decryptor = cipher.decryptor()
 
-                # Decrypt file in chunks
-                while True:
-                    chunk = in_file.read(chunk_size)
-                    if not chunk:
-                        break
+                    # Use memoryview for efficient chunk processing
+                    while True:
+                        chunk = in_file.read(chunk_size)
+                        if not chunk:
+                            break
 
-                    decrypted_chunk = decryptor.update(chunk)
-                    out_file.write(decrypted_chunk)
+                        decrypted_chunk = decryptor.update(chunk)
+                        out_file.write(decrypted_chunk)
 
-                # Write final block and remove padding
-                final_chunk = decryptor.finalize()
-                if final_chunk:
-                    padding = final_chunk[-1]
-                    out_file.write(final_chunk[:-padding])
+                    # Write final block and remove padding
+                    final_chunk = decryptor.finalize()
+                    if final_chunk:
+                        # Validate padding
+                        padding = final_chunk[-1]
+                        if padding > 16:
+                            raise CryptoError("Invalid padding")
+                        # Verify padding bytes are consistent
+                        if not all(x == padding for x in final_chunk[-padding:]):
+                            raise CryptoError("Inconsistent padding")
+                        out_file.write(final_chunk[:-padding])
 
             return True
 
+        except (IOError, InvalidKey) as e:
+            self.logger.error(f"File decryption I/O error: {str(e)}")
+            return False
+        except CryptoError as e:
+            self.logger.error(f"Decryption validation error: {str(e)}")
+            return False
         except Exception as e:
-            self.logger.error(f"Large file decryption error: {str(e)}")
+            self.logger.exception("Unexpected error during file decryption")
             return False
