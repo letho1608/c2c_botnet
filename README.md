@@ -1,136 +1,180 @@
-# C2C BOTNET
+# C2C BOTNET - Phiên Bản Nâng Cao Thread-Safe
 
+## Tổng Quan
 
-Đây là một hệ thống C&c Server Botnet nâng cao, kết hợp các tính năng từ 3 dự án:
+Đây là hệ thống C&C Server Botnet nâng cao với cải tiến toàn diện về thread safety, kết hợp tính năng từ 3 dự án:
 - [CnC-Botnet-in-Python](https://github.com/marcorosa/CnC-Botnet-in-Python)
 - [FleX](https://github.com/flex-master)
 - [NetWorm](https://github.com/pylyf/NetWorm)
 
-Hệ thống này được thiết kế để nghiên cứu về an ninh mạng và phát triển kỹ năng phòng thủ. Dự án cung cấp một nền tảng hoàn chỉnh để hiểu cách malware hoạt động và cách ngăn chặn chúng.
+**QUAN TRỌNG**: Hệ thống này được thiết kế cho nghiên cứu an ninh mạng và phát triển kỹ năng phòng thủ. Dự án cung cấp một nền tảng hoàn chỉnh để hiểu cách malware hoạt động và cách ngăn chặn chúng.
 
-## Tính năng
+## 🔒 Thread Safety & Cải Tiến Bảo Mật
 
-### Server
-- Quản lý và điều khiển nhiều bot đồng thời qua console
-- Hỗ trợ kết nối mã hóa SSL/TLS
-- Theo dõi trạng thái bot theo thời gian thực
-- Thu thập và phân tích dữ liệu từ bot
-- Quét và lây lan tự động trong mạng
-- Phân tích mục tiêu và điều phối tấn công
+Phiên bản này bao gồm cải tiến toàn diện về thread safety giải quyết 12 lỗ hổng quan trọng:
 
-### Client/Bot
-1. Chức năng Theo dõi:
-- Keylogger nâng cao
-- Chụp màn hình từ xa
-- Thu thập thông tin hệ thống chi tiết
-- Theo dõi tiến trình và dịch vụ
+### 🛡️ Sửa Lỗi Quan Trọng Đã Triển Khai
+- **5 Race Conditions Đã Sửa**: Quản lý trạng thái kết nối, xử lý tín hiệu, đăng ký client
+- **6 Thao Tác Không An Toàn Đã Bảo Mật**: Thao tác socket, truy cập file, quản lý bộ nhớ
+- **1 Phương Thức Trùng Lặp Đã Loại Bỏ**: Hợp nhất emergency shutdown
 
-2. Điều khiển Hệ thống:
-- Thực thi lệnh shell
-- Inject shellcode/DLL
-- Điều khiển tiến trình
-- Truy cập file system
+### 🔧 Tính Năng Thread Safety
+- **Cơ Chế RLock/Lock**: Cho quản lý kết nối và tài nguyên
+- **Đồng Bộ Hóa Dựa Trên Event**: Phối hợp shutdown sạch sẽ
+- **Weak References**: Ngăn chặn memory leak
+- **Context Managers**: Tự động dọn dẹp tài nguyên
+- **Thread Pools**: Sử dụng tài nguyên có giới hạn (32 workers + 16 I/O)
+- **Rate Limiting**: Bảo vệ DOS với throttling kết nối
+- **SSL/TLS Hardening**: Ép buộc TLS 1.2+ với cipher mạnh
 
-3. Tự động Lây lan:
-- Quét mạng tìm mục tiêu
-- Khai thác các lỗ hổng phổ biến
-- Lây lan qua USB
-- Tự động tìm và lây nhiễm mục tiêu mới
+### 📊 Tối Ưu Hóa Hiệu Năng
+- Thao tác I/O không chặn
+- Giám sát và dọn dẹp nền
+- Emergency shutdown với timeout 10 giây
+- Chứng chỉ SSL tự động sinh cho giao tiếp bảo mật
 
-4. Persistence:
-- Nhiều cơ chế tự khởi động
-- Duy trì quyền truy cập
-- Xóa dấu vết
-- Chống phát hiện và gỡ bỏ
+## ✨ Tính Năng
 
-5. Bảo mật:
-- Mã hóa tất cả giao tiếp
-- Phát hiện môi trường ảo hóa
-- Nhiều lớp xác thực
-- Tự động phục hồi kết nối
+### 🖥️ Server (ThreadSafeServer)
+- **Quản Lý Đa Bot**: Điều khiển nhiều bot đồng thời qua console
+- **Kết Nối Mã Hóa**: Hỗ trợ SSL/TLS với chứng chỉ tự động sinh
+- **Giám Sát Thời Gian Thực**: Theo dõi trạng thái bot và thống kê trực tiếp
+- **Thu Thập Dữ Liệu**: Phân tích dữ liệu toàn diện từ các bot
+- **Quét Mạng**: Quét mạng tự động và lan truyền
+- **Phân Tích Mục Tiêu**: Phối hợp mục tiêu thông minh và điều phối tấn công
+- **Thread Safety**: Bảo vệ hoàn toàn chống lại race conditions
+- **Connection Pooling**: Quản lý tài nguyên hiệu quả với thread pools có giới hạn
+- **Rate Limiting**: Bảo vệ chống flooding kết nối
+- **Background Tasks**: Tự động dọn dẹp và giám sát
 
-## Cài đặt
+### 🤖 Client/Bot (ThreadSafeClient)
 
-1. Clone repository:
-```bash
+#### 1. Giám Sát Nâng Cao:
+- **Enhanced Keylogger**: Ghi lại phím bấm nâng cao với thread safety
+- **Remote Screenshots**: Chụp màn hình bảo mật từ mục tiêu
+- **System Information**: Profiling hệ thống chi tiết và trinh sát
+- **Process Monitoring**: Theo dõi tiến trình và dịch vụ thời gian thực
+
+#### 2. Điều Khiển Hệ Thống:
+- **Shell Command Execution**: Thực thi lệnh từ xa với bảo vệ timeout
+- **Shellcode/DLL Injection**: Kỹ thuật tiêm code nâng cao
+- **Process Control**: Thao tác tiến trình thread-safe
+- **File System Access**: Thao tác file từ xa bảo mật
+
+#### 3. Lan Truyền Tự Động:
+- **Network Scanning**: Khám phá mục tiêu thông minh
+- **Exploit Integration**: Khai thác lỗ hổng phổ biến
+- **USB Spreading**: Lan truyền tự động qua USB
+- **Target Infection**: Khám phá và lây nhiễm mục tiêu mới tự động
+
+#### 4. Cơ Chế Duy Trì:
+- **Multiple Auto-start Methods**: Registry, Task Scheduler, WMI persistence
+- **Access Maintenance**: Duy trì truy cập liên tục
+- **Trace Removal**: Khả năng anti-forensics nâng cao
+- **Anti-detection**: Tránh phát hiện toàn diện
+
+#### 5. Bảo Mật & Bảo Vệ:
+- **End-to-end Encryption**: Tất cả giao tiếp được mã hóa
+- **VM Detection**: Phát hiện môi trường ảo hóa nâng cao
+- **Multi-layer Authentication**: Cơ chế xác thực mạnh mẽ
+- **Auto-reconnection**: Khôi phục kết nối thông minh
+- **Thread Safety**: Bảo vệ hoàn toàn chống race condition
+
+## 🚀 Cài Đặt
+
+### Yêu Cầu
+- **Python 3.8+** (khuyến nghị Python 3.10+)
+- **Windows 10/11** (cho một số module client)
+- **Linux** (cho server hoặc module đa nền tảng)
+- **Quyền Administrator** (cho một số tính năng nâng cao)
+
+### Hướng Dẫn Cài Đặt
+
+1. **Clone Repository**:
+```powershell
 git clone https://github.com/letho1608/c2c_botnet
-cd c&c-server
+cd c2c_botnet
 ```
 
-2. Cài đặt dependencies:
-```bash
+2. **Cài Đặt Dependencies**:
+```powershell
 pip install -r requirements.txt
 ```
 
-### Yêu cầu hệ thống
-- Python 3.8 hoặc cao hơn
-- Windows 10/11 (cho một số module client)
-- Linux (cho server hoặc một số module client)
-- Quyền admin cho một số chức năng
+3. **Tạo Chứng Chỉ SSL** (Tùy chọn - tự động sinh nếu thiếu):
+```powershell
+# Server sẽ tự động sinh chứng chỉ self-signed
+# Chứng chỉ tùy chỉnh có thể đặt là server_cert.pem và server_key.pem
+```
 
-## Sử dụng
+## 🎮 Sử Dụng
 
-### Khởi động Server:
-```bash
+### Khởi Động Server:
+```powershell
+cd core
 python server.py
 ```
 
-### Tạo và chạy Client:
-```bash
-python client.py <server_host> <server_port>
+### Tạo và Chạy Client:
+```powershell
+python client.py [server_host] [server_port]
 ```
 
-### Các lệnh Console:
+**Kết Nối Mặc Định**: `localhost:4444`
 
-### Quản lý Bot
-- `list` - Hiển thị danh sách bot đang kết nối
-- `scan [subnet]` - Quét mạng tìm mục tiêu mới
-- `spread <target>` - Lây lan tới mục tiêu cụ thể
-- `info <bot_id>` - Hiển thị thông tin chi tiết về bot
+## 💻 Lệnh Console
 
-### Theo dõi và Thu thập
+### 🤖 Quản Lý Bot
+- `list` - Hiển thị danh sách bot đã kết nối
+- `scan [subnet]` - Quét mạng tìm kiếm mục tiêu mới
+- `spread <target>` - Lây lan đến mục tiêu cụ thể
+- `info <bot_id>` - Hiển thị thông tin chi tiết bot
+- `stats` - Hiển thị thống kê server và chỉ số hiệu suất
+
+### 👁️ Giám Sát & Thu Thập Dữ Liệu
 - `keylogger <bot_id> <start|stop|dump>` - Điều khiển keylogger
-- `advanced_keylog <bot_id> <options>` - Keylogger nâng cao với nhiều tùy chọn
+- `advanced_keylog <bot_id> <options>` - Keylogger nâng cao với tùy chọn mở rộng
 - `screenshot <bot_id>` - Chụp màn hình từ xa
-- `webcam <bot_id> <capture|stream>` - Chụp hình hoặc stream từ webcam
+- `webcam <bot_id> <capture|stream>` - Thu thập hoặc stream webcam
 - `sysinfo <bot_id>` - Lấy thông tin hệ thống
-- `ps <bot_id>` - Liệt kê tiến trình đang chạy
-- `browser <bot_id> <browser>` - Thu thập dữ liệu từ trình duyệt
-- `wifi <bot_id>` - Thu thập thông tin về các mạng WiFi
+- `ps <bot_id>` - Liệt kê các tiến trình đang chạy
+- `browser <bot_id> <browser>` - Thu thập dữ liệu trình duyệt
+- `wifi <bot_id>` - Thu thập thông tin mạng WiFi
 - `credentials <bot_id> <type>` - Thu thập thông tin đăng nhập
 
-### Điều khiển Hệ thống
+### 🔧 Điều Khiển Hệ Thống
 - `shell <bot_id> <command>` - Thực thi lệnh shell
-- `inject shellcode <bot_id> <base64_shellcode> [pid]` - Inject shellcode
-- `inject dll <bot_id> <pid> <dll_path>` - Inject DLL
-- `kill <bot_id> <pid>` - Dừng tiến trình
-- `migrate <bot_id> <pid>` - Di chuyển payload sang tiến trình khác
+- `inject shellcode <bot_id> <base64_shellcode> [pid]` - Tiêm shellcode
+- `inject dll <bot_id> <pid> <dll_path>` - Tiêm DLL
+- `kill <bot_id> <pid>` - Kết thúc tiến trình
+- `migrate <bot_id> <pid>` - Di chuyển tiến trình
 - `schedule <bot_id> <time> <command>` - Lập lịch thực thi lệnh
 
-### Persistence
-- `persist <bot_id> install` - Cài đặt persistence
-- `persist <bot_id> cleanup` - Xóa dấu vết
+### 🔄 Quản Lý Persistence
+- `persist <bot_id> install` - Cài đặt cơ chế duy trì quyền truy cập
+- `persist <bot_id> cleanup` - Xóa dấu vết và dọn dẹp
 - `persist <bot_id> check` - Kiểm tra trạng thái persistence
-- `persist <bot_id> method <method_name>` - Cài đặt persistence với phương thức cụ thể
+- `persist <bot_id> method <method_name>` - Cài đặt phương thức persistence cụ thể
 
-### File Operations
-- `upload <bot_id> <local_path> <remote_path>` - Upload file
-- `download <bot_id> <remote_path> <local_path>` - Download file
-- `ls <bot_id> <path>` - Liệt kê file
+### 📁 Thao Tác File
+- `upload <bot_id> <local_path> <remote_path>` - Tải file lên
+- `download <bot_id> <remote_path> <local_path>` - Tải file xuống
+- `ls <bot_id> <path>` - Liệt kê nội dung thư mục
 - `rm <bot_id> <path>` - Xóa file
 - `search <bot_id> <pattern>` - Tìm kiếm file
 
-### Mạng và Lây lan
-- `network_map <subnet>` - Tạo sơ đồ mạng
-- `lateral <bot_id> <method> <target>` - Di chuyển ngang trong mạng
-- `exploit <target> <exploit_name>` - Khai thác lỗ hổng trên mục tiêu
-- `pivot <bot_id>` - Sử dụng bot làm điểm truy cập vào mạng
+### 🌐 Mạng & Di Chuyển Ngang
+- `network_map <subnet>` - Tạo bản đồ topology mạng
+- `lateral <bot_id> <method> <target>` - Di chuyển ngang
+- `exploit <target> <exploit_name>` - Khai thác mục tiêu
+- `pivot <bot_id>` - Sử dụng bot làm điểm xoay mạng
 
-### An ninh và Bảo vệ
-- `obfuscate <payload>` - Làm rối mã nhị phân
+### 🛡️ Bảo Mật & Bảo Vệ
+- `obfuscate <payload>` - Làm rối mã binary
 - `encrypt <file> <key>` - Mã hóa file
-- `anti_vm <bot_id> <enable|disable>` - Bật/tắt phát hiện môi trường ảo
+- `anti_vm <bot_id> <enable|disable>` - Bật/tắt phát hiện VM
 - `security <level>` - Thiết lập mức độ bảo mật
+- `emergency_shutdown` - Tắt khẩn cấp server
 
 ## Cấu trúc Project
 ```

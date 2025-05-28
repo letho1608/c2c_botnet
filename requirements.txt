@@ -8,3 +8,17 @@ networkx==2.6.3
 psutil==5.8.0
 lru-dict==1.1.7
 cryptography==36.0.1
+
+# Additional dependencies for new modules
+requests>=2.25.1
+pynacl>=1.4.0
+keyring>=23.0.0
+plyer>=2.0.0
+scapy>=2.4.4
+pywifi>=1.1.12
+netifaces>=0.11.0
+pillow>=8.2.0
+opencv-python>=4.5.0
+pycryptodome>=3.10.1
+numpy>=1.21.0
+requests-toolbelt>=0.9.1
