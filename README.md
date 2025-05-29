@@ -1,4 +1,4 @@
-# C2C BOTNET - Phiên Bản Nâng Cao Thread-Safe
+# C2C BOTNET
 
 ## Tổng Quan
 
