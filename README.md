@@ -22,18 +22,9 @@
 pip install -r requirements.txt
 ```
 
-### Bước 2: Kiểm Tra Hệ Thống
+### Bước 2: Khởi Chạy GUI
 ```bash
-# Kiểm tra tất cả dependencies
-python check_dependencies.py
-```
-
-### Bước 3: Khởi Chạy GUI
-```bash
-# Cách 1: Sử dụng menu tự động
-start.bat
-
-# Cách 2: Khởi chạy trực tiếp
+Khởi chạy trực tiếp
 python main_gui.py             # GUI chính duy nhất
 ```
 
@@ -119,10 +110,6 @@ pip install -r requirements.txt
 # Chứng chỉ tùy chỉnh có thể đặt là server_cert.pem và server_key.pem
 ```
 
-## 🎮 Sử Dụng
-python gui_launcher.py
-
-
 ### 🎨 Tính Năng GUI PyQt5:
 - **Modern Sidebar**: Animation mượt mà, collapse/expand
 - **Dashboard**: Real-time charts, system metrics, thống kê bot
@@ -196,73 +183,6 @@ python client.py [server_host] [server_port]
 - `anti_vm <bot_id> <enable|disable>` - Bật/tắt phát hiện VM
 - `security <level>` - Thiết lập mức độ bảo mật
 - `emergency_shutdown` - Tắt khẩn cấp server
-
-## Cấu trúc Project
-```
-d:\Code\c&c server\
-│
-├── gui_launcher.py     # GUI Launcher - chọn loại GUI
-├── setup_gui.py        # Setup dependencies cho GUI
-├── server.py           # Server chính
-├── client.py           # Client/Bot chính
-├── remote_control.py   # Điều khiển từ xa
-├── requirements.txt    # Dependencies (bao gồm PyQt5)
-├── FEATURES.md         # Mô tả tính năng chi tiết
-├── UPGRADE_PLAN.md     # Kế hoạch nâng cấp
-│
-├── core/               # Core server
-│   ├── server.py       # Xử lý kết nối
-│   ├── console.py      # Console UI
-│   ├── exploit_builder.py  # Tạo exploit
-│   ├── host_manager.py     # Quản lý host
-│   ├── multiple_servers.py # Điều phối nhiều server
-│   ├── plugin_system.py    # Hệ thống plugin
-│   └── reporting.py        # Báo cáo và phân tích
-│
-├── gui/                # Giao diện người dùng
-│   └── pyqt_interface.py   # 🎨 PyQt5 GUI hiện đại (DUY NHẤT)
-│
-├── botnet/             # Quản lý botnet
-│   └── manager.py      # Bot Manager
-│
-│
-├── network/            # Network & Spreading
-│   ├── scanner.py      # Network Scanner
-│   ├── lateral_movement.py # Di chuyển ngang
-│   ├── network_discovery.py # Khám phá mạng
-│   ├── signatures.yaml # Chữ ký nhận dạng
-│   └── spreading.py    # Phương thức lây lan
-│
-├── payload/            # Client modules
-│   └── modules/
-│       ├── anti_analysis.py      # Chống phân tích
-│       ├── browser_harvester.py  # Thu thập dữ liệu trình duyệt
-│       ├── credential_harvester.py # Thu thập thông tin đăng nhập
-│       ├── data_harvester.py     # Thu thập dữ liệu
-│       ├── ddos.py               # Tấn công DDoS
-│       ├── keylogger.py          # Ghi lại phím bấm
-│       ├── media_capture.py      # Thu thập media
-│       ├── persistence.py        # Duy trì quyền truy cập
-│       ├── process_migration.py  # Di chuyển giữa các tiến trình
-│       ├── scheduler.py          # Lập lịch tác vụ
-│       ├── screenshot.py         # Chụp màn hình
-│       ├── shellcode.py          # Thực thi shellcode
-│       ├── sysinfo.py            # Thông tin hệ thống
-│       ├── webcam.py             # Truy cập webcam
-│       └── wifi_harvester.py     # Thu thập thông tin WiFi
-│
-└── utils/              # Utilities
-    ├── advanced_protection.py    # Bảo vệ nâng cao
-    ├── anti_vm.py                # Phát hiện môi trường ảo hóa
-    ├── cert_pinning.py           # Gắn chứng chỉ
-    ├── code_obfuscation.py       # Làm rối mã nguồn
-    ├── crypto.py                 # Mã hóa cơ bản
-    ├── integrity.py              # Kiểm tra tính toàn vẹn
-    ├── logger.py                 # Ghi log
-    ├── memory_protection.py      # Bảo vệ bộ nhớ
-    ├── network_protection.py     # Bảo vệ kết nối mạng
-    └── security_manager.py       # Quản lý bảo mật
-```
 
 ## Cảnh báo và Mục đích Sử dụng
 
