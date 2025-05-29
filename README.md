@@ -2,30 +2,42 @@
 
 ## Tổng Quan
 
-Đây là hệ thống C&C Server Botnet nâng cao với cải tiến toàn diện về thread safety, kết hợp tính năng từ 3 dự án:
-- [CnC-Botnet-in-Python](https://github.com/marcorosa/CnC-Botnet-in-Python)
-- [FleX](https://github.com/flex-master)
-- [NetWorm](https://github.com/pylyf/NetWorm)
+Đây là hệ thống C&C (Command & Control) Server Botnet nâng cao được thiết kế với cải tiến toàn diện về thread safety. Hệ thống cung cấp một nền tảng mạnh mẽ để nghiên cứu cách thức hoạt động của botnet với các đặc điểm nổi bật:
+
+- Kiến trúc thread-safe đảm bảo tính ổn định và an toàn khi xử lý đồng thời nhiều kết nối
+- Hệ thống mã hóa end-to-end bảo vệ toàn bộ giao tiếp giữa server và client
+- Cơ chế quản lý tài nguyên thông minh với connection pooling và rate limiting
+- Khả năng mở rộng linh hoạt thông qua kiến trúc plugin
+- Giám sát thời gian thực với dashboard trực quan
+- Tự động phát hiện và phòng chống các cuộc tấn công DDoS
+
 
 **QUAN TRỌNG**: Hệ thống này được thiết kế cho nghiên cứu an ninh mạng và phát triển kỹ năng phòng thủ. Dự án cung cấp một nền tảng hoàn chỉnh để hiểu cách malware hoạt động và cách ngăn chặn chúng.
 
+## 🚀 Cài Đặt và Khởi Chạy Nhanh
+
+### Bước 1: Cài Đặt Dependencies
+```bash
+# Chạy script setup 
+pip install -r requirements.txt
+```
+
+### Bước 2: Kiểm Tra Hệ Thống
+```bash
+# Kiểm tra tất cả dependencies
+python check_dependencies.py
+```
+
+### Bước 3: Khởi Chạy GUI
+```bash
+# Cách 1: Sử dụng menu tự động
+start.bat
+
+# Cách 2: Khởi chạy trực tiếp
+python main_gui.py             # GUI chính duy nhất
+```
+
 ## 🔒 Thread Safety & Cải Tiến Bảo Mật
-
-Phiên bản này bao gồm cải tiến toàn diện về thread safety giải quyết 12 lỗ hổng quan trọng:
-
-### 🛡️ Sửa Lỗi Quan Trọng Đã Triển Khai
-- **5 Race Conditions Đã Sửa**: Quản lý trạng thái kết nối, xử lý tín hiệu, đăng ký client
-- **6 Thao Tác Không An Toàn Đã Bảo Mật**: Thao tác socket, truy cập file, quản lý bộ nhớ
-- **1 Phương Thức Trùng Lặp Đã Loại Bỏ**: Hợp nhất emergency shutdown
-
-### 🔧 Tính Năng Thread Safety
-- **Cơ Chế RLock/Lock**: Cho quản lý kết nối và tài nguyên
-- **Đồng Bộ Hóa Dựa Trên Event**: Phối hợp shutdown sạch sẽ
-- **Weak References**: Ngăn chặn memory leak
-- **Context Managers**: Tự động dọn dẹp tài nguyên
-- **Thread Pools**: Sử dụng tài nguyên có giới hạn (32 workers + 16 I/O)
-- **Rate Limiting**: Bảo vệ DOS với throttling kết nối
-- **SSL/TLS Hardening**: Ép buộc TLS 1.2+ với cipher mạnh
 
 ### 📊 Tối Ưu Hóa Hiệu Năng
 - Thao tác I/O không chặn
@@ -108,15 +120,24 @@ pip install -r requirements.txt
 ```
 
 ## 🎮 Sử Dụng
+python gui_launcher.py
 
-### Khởi Động Server:
+
+### 🎨 Tính Năng GUI PyQt5:
+- **Modern Sidebar**: Animation mượt mà, collapse/expand
+- **Dashboard**: Real-time charts, system metrics, thống kê bot
+- **Bot Management**: Table view với selection, control panel
+- **System Monitoring**: CPU/Memory/Network charts, connection logs
+- **Dark Theme**: Giao diện chuyên nghiệp, dễ nhìn
+- **Responsive**: Tự động resize, optimal layout
+
+### 📟 Command Line (Advanced):
 ```powershell
+# Khởi động server
 cd core
 python server.py
-```
 
-### Tạo và Chạy Client:
-```powershell
+# Tạo và chạy client
 python client.py [server_host] [server_port]
 ```
 
@@ -180,10 +201,12 @@ python client.py [server_host] [server_port]
 ```
 d:\Code\c&c server\
 │
+├── gui_launcher.py     # GUI Launcher - chọn loại GUI
+├── setup_gui.py        # Setup dependencies cho GUI
 ├── server.py           # Server chính
 ├── client.py           # Client/Bot chính
 ├── remote_control.py   # Điều khiển từ xa
-├── requirements.txt    # Dependencies
+├── requirements.txt    # Dependencies (bao gồm PyQt5)
 ├── FEATURES.md         # Mô tả tính năng chi tiết
 ├── UPGRADE_PLAN.md     # Kế hoạch nâng cấp
 │
@@ -195,6 +218,9 @@ d:\Code\c&c server\
 │   ├── multiple_servers.py # Điều phối nhiều server
 │   ├── plugin_system.py    # Hệ thống plugin
 │   └── reporting.py        # Báo cáo và phân tích
+│
+├── gui/                # Giao diện người dùng
+│   └── pyqt_interface.py   # 🎨 PyQt5 GUI hiện đại (DUY NHẤT)
 │
 ├── botnet/             # Quản lý botnet
 │   └── manager.py      # Bot Manager

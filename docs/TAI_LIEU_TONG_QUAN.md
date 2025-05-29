@@ -18,7 +18,6 @@
 | Tài Liệu | Mô Tả | Đối Tượng |
 |----------|-------|-----------|
 | `TAI_LIEU_TONG_QUAN_HOAN_CHINH.md` | Tổng quan toàn diện về hệ thống | Tất cả người dùng |
-| `HUONG_DAN_CAI_DAT_CHI_TIET.md` | Hướng dẫn cài đặt từng bước | Người triển khai |
 | `HUONG_DAN_SU_DUNG.md` | Hướng dẫn sử dụng chi tiết | Người vận hành |
 | `API_REFERENCE.md` | Tài liệu API và lập trình | Developer |
 
@@ -60,8 +59,8 @@
 
 #### 1. **Server Components**
 - **ThreadSafeServer**: Server C2C chính với thread safety
-- **Console Interface**: Giao diện điều khiển
-- **Web Interface**: Giao diện web quản lý
+- **Console Interface**: Giao diện điều khiển  
+- **PyQt5 GUI**: Giao diện đồ họa hiện đại (duy nhất)
 - **Reporting System**: Hệ thống báo cáo
 
 #### 2. **Client Components**  
@@ -192,11 +191,13 @@ class ThreadSafeResource:
                 self._cleanup()
 ```
 
-#### Rate Limiting & Protection
-- **Connection Throttling**: 100 requests/minute per client
-- **Resource Limits**: Maximum 1000 concurrent connections
-- **Automatic Blocking**: IP-based blocking for suspicious activity
-- **Memory Protection**: Automatic garbage collection and leak prevention
+#### 🛡️ Giới Hạn Tốc Độ & Bảo Vệ Hệ Thống
+
+- **Giới hạn kết nối**: Tối đa 100 yêu cầu/phút cho mỗi client
+- **Giới hạn tài nguyên**: Tối đa 1000 kết nối đồng thời
+- **Tự động chặn**: Chặn theo địa chỉ IP khi phát hiện hoạt động đáng ngờ
+- **Bảo vệ bộ nhớ**: Thu gom rác tự động và ngăn ngừa rò rỉ bộ nhớ
+
 
 ---
 
@@ -239,54 +240,54 @@ class ThreadSafeResource:
 | `usb_spreading.py` | Lan truyền USB | Cross-platform |
 | `domain_fronting.py` | Domain fronting | Cross-platform |
 
-#### Evasion & Protection
-| Module | Mô Tả | Platform |
+#### Evasion & Protection (Trốn Tránh & Bảo Vệ)
+| Module | Mô Tả | Nền Tảng |
 |--------|-------|----------|
 | `anti_forensics.py` | Chống điều tra | Windows/Linux |
-| `anti_analysis.py` | Chống phân tích | Cross-platform |
-| `polymorphic_engine.py` | Mã hóa đa hình | Cross-platform |
+| `anti_analysis.py` | Chống phân tích | Đa nền tảng |
+| `polymorphic_engine.py` | Mã hóa đa hình | Đa nền tảng |
 
 ### 🔧 Utility Modules (`utils/`)
 
 | Module | Chức Năng | Mô Tả |
 |--------|-----------|-------|
-| `crypto.py` | Mã hóa | AES, RSA, key management |
-| `anti_vm.py` | Anti-VM | Phát hiện môi trường ảo |
-| `memory_protection.py` | Bảo vệ bộ nhớ | Memory injection protection |
-| `network_protection.py` | Bảo vệ mạng | Network monitoring |
-| `cert_pinning.py` | Certificate pinning | SSL certificate validation |
+| `crypto.py` | Mã hóa | AES, RSA, quản lý khóa |
+| `anti_vm.py` | Chống máy ảo | Phát hiện môi trường ảo |
+| `memory_protection.py` | Bảo vệ bộ nhớ | Bảo vệ chống tiêm mã |
+| `network_protection.py` | Bảo vệ mạng | Giám sát mạng |
+| `cert_pinning.py` | Ghim chứng chỉ | Xác thực chứng chỉ SSL |
 
 ---
 
 ## 🚀 Yêu Cầu Hệ Thống
 
-### 💻 Server Requirements
+### 💻 Yêu Cầu Máy Chủ
 
-#### Minimum Configuration
-- **OS**: Windows 10+ hoặc Ubuntu 18.04+
+#### Cấu Hình Tối Thiểu
+- **HĐH**: Windows 10+ hoặc Ubuntu 18.04+
 - **Python**: 3.8+ (khuyến nghị 3.10+)
-- **RAM**: 4GB (8GB khuyến nghị cho > 100 bots)
-- **Storage**: 10GB free space
-- **Network**: Stable internet, public IP khuyến nghị
+- **RAM**: 4GB (khuyến nghị 8GB cho > 100 bot)
+- **Lưu Trữ**: 10GB dung lượng trống
+- **Mạng**: Internet ổn định, khuyến nghị IP công khai
 
-#### Recommended Production
-- **CPU**: 8 cores Intel/AMD
+#### Khuyến Nghị Cho Môi Trường Sản Xuất
+- **CPU**: 8 lõi Intel/AMD
 - **RAM**: 32GB 
-- **Storage**: 100GB SSD
-- **Network**: Dedicated server, 100Mbps+
-- **OS**: Ubuntu 20.04 LTS Server
+- **Lưu Trữ**: 100GB SSD
+- **Mạng**: Máy chủ chuyên dụng, 100Mbps+
+- **HĐH**: Ubuntu 20.04 LTS Server
 
-### 🤖 Client Requirements
+### 🤖 Yêu Cầu Máy Khách
 
-#### Target Systems
+#### Hệ Thống Mục Tiêu
 - **Windows 7/8/10/11** (32/64-bit)
 - **Windows Server 2012+**
-- **Limited Linux support**
+- **Hỗ trợ Linux có hạn**
 
-#### Runtime Dependencies
-- **Python 3.8+** (source mode)
-- **Internet connectivity**
-- **2GB RAM minimum**
+#### Phụ Thuộc Thời Gian Chạy
+- **Python 3.8+** (chế độ mã nguồn)
+- **Kết nối Internet**
+- **Tối thiểu 2GB RAM**
 
 ---
 
@@ -384,46 +385,47 @@ sequenceDiagram
 > deploy payload --type persistence --stealth high
 ```
 
-#### 2. **Blue Team Detection**
+#### 2. **Phát Hiện Đội Xanh (Blue Team Detection)**
 - Triển khai bot trên honeypot
-- Phân tích traffic patterns
-- Thử nghiệm detection rules
-- Đánh giá incident response
+- Phân tích mẫu lưu lượng truy cập
+- Thử nghiệm quy tắc phát hiện
+- Đánh giá phản ứng sự cố
 
-#### 3. **Malware Research**
-- Nghiên cứu behavior patterns
-- Phân tích network communications
-- Reverse engineering techniques
-- Development của detection signatures
+#### 3. **Nghiên Cứu Malware**
+- Nghiên cứu mô hình hành vi
+- Phân tích giao tiếp mạng
+- Kỹ thuật dịch ngược
+- Phát triển chữ ký phát hiện
 
-### 🔬 Research Applications
+### 🔬 Ứng Dụng Nghiên Cứu
 
-#### 1. **Academic Research**
-- **Network Security**: Nghiên cứu các phương pháp bảo mật mạng mới
-- **Malware Evolution**: Phân tích xu hướng phát triển malware
-- **AI Security**: Ứng dụng AI trong detection và prevention
-- **Incident Response**: Phát triển quy trình phản ứng sự cố
+#### 1. **Nghiên Cứu Học Thuật**
+- **Bảo Mật Mạng**: Nghiên cứu các phương pháp bảo mật mạng mới
+- **Tiến Hóa Malware**: Phân tích xu hướng phát triển malware
+- **An Ninh AI**: Ứng dụng AI trong phát hiện và ngăn chặn
+- **Phản Ứng Sự Cố**: Phát triển quy trình phản ứng sự cố
 
-#### 2. **Corporate Security Testing**
-- **Penetration Testing**: Đánh giá bảo mật enterprise
-- **Employee Training**: Đào tạo nhận thức an ninh
-- **Security Assessment**: Kiểm tra hiệu quả security controls
-- **Compliance Testing**: Đảm bảo tuân thủ quy định
+#### 2. **Kiểm Thử Bảo Mật Doanh Nghiệp**
+- **Kiểm Thử Thâm Nhập**: Đánh giá bảo mật doanh nghiệp
+- **Đào Tạo Nhân Viên**: Đào tạo nhận thức an ninh
+- **Đánh Giá Bảo Mật**: Kiểm tra hiệu quả kiểm soát bảo mật
+- **Kiểm Thử Tuân Thủ**: Đảm bảo tuân thủ quy định
 
 ---
 
 ## 🏗️ Kiến Trúc Nâng Cao
 
-### 🔄 Load Balancing và Scalability
+### 🔄 Cân Bằng Tải và Khả Năng Mở Rộng
 
-#### Multi-Server Architecture
+#### Kiến Trúc Đa Máy Chủ
 ```python
-# High Availability Configuration
+```python
+# Cấu Hình Khả Dụng Cao
 CONFIG = {
     'servers': [
-        {'host': '10.0.1.100', 'port': 4444, 'role': 'primary'},
-        {'host': '10.0.1.101', 'port': 4444, 'role': 'secondary'},
-        {'host': '10.0.1.102', 'port': 4444, 'role': 'failover'}
+        {'host': '10.0.1.100', 'port': 4444, 'role': 'chính'},
+        {'host': '10.0.1.101', 'port': 4444, 'role': 'phụ'},
+        {'host': '10.0.1.102', 'port': 4444, 'role': 'dự_phòng'}
     ],
     'load_balancer': {
         'algorithm': 'round_robin',
@@ -433,25 +435,25 @@ CONFIG = {
 }
 ```
 
-#### Database Clustering
+#### Phân Cụm Cơ Sở Dữ Liệu
 ```sql
--- Master-Slave Configuration
+-- Cấu Hình Master-Slave
 CREATE TABLE bot_sessions (
     session_id VARCHAR(64) PRIMARY KEY,
     bot_id VARCHAR(32) NOT NULL,
     server_node VARCHAR(16),
     last_seen TIMESTAMP,
-    status ENUM('active', 'inactive', 'pending')
+    status ENUM('hoạt_động', 'không_hoạt_động', 'chờ_xử_lý')
 );
 
--- Sharding Strategy
+-- Chiến Lược Phân Mảnh
 CREATE TABLE bot_data_shard1 (id INT) PARTITION BY HASH(bot_id);
 CREATE TABLE bot_data_shard2 (id INT) PARTITION BY HASH(bot_id);
 ```
 
-### 🛡️ Advanced Security Features
+### 🛡️ Tính Năng Bảo Mật Nâng Cao
 
-#### Certificate Authority (CA) Management
+#### Quản Lý Cơ Quan Chứng Chỉ (CA)
 ```python
 class CAManager:
     def __init__(self):
@@ -488,7 +490,7 @@ class CAManager:
         return cert, private_key
 ```
 
-#### Zero-Trust Network Model
+#### Mô Hình Mạng Không Tin Cậy (Zero-Trust)
 ```python
 class ZeroTrustValidator:
     def validate_bot_connection(self, bot_session):
@@ -502,29 +504,29 @@ class ZeroTrustValidator:
         return all(checks)
 ```
 
-### 📡 Communication Protocols
+### 📡 Giao Thức Giao Tiếp
 
-#### Custom Protocol Stack
+#### Ngăn Xếp Giao Thức Tùy Chỉnh
 ```
 ┌─────────────────────────────────────┐
-│         Application Layer           │ ← Custom C2C Protocol
+│         Lớp Ứng Dụng                │ ← Giao Thức C2C Tùy Chỉnh
 ├─────────────────────────────────────┤
-│         Encryption Layer            │ ← AES-256-GCM
+│         Lớp Mã Hóa                  │ ← AES-256-GCM
 ├─────────────────────────────────────┤
-│         Compression Layer           │ ← ZLIB/GZIP
+│         Lớp Nén                     │ ← ZLIB/GZIP
 ├─────────────────────────────────────┤
-│         Transport Layer             │ ← SSL/TLS 1.3
+│         Lớp Vận Chuyển              │ ← SSL/TLS 1.3
 ├─────────────────────────────────────┤
-│         Network Layer               │ ← TCP/IP
+│         Lớp Mạng                    │ ← TCP/IP
 └─────────────────────────────────────┘
 ```
 
-#### Message Format Specification
+#### Đặc Tả Định Dạng Tin Nhắn
 ```json
 {
   "header": {
     "version": "2.0",
-    "type": "command|response|heartbeat",
+    "type": "lệnh|phản_hồi|heartbeat",
     "id": "uuid-v4",
     "timestamp": "iso-8601",
     "checksum": "sha256-hash"
@@ -540,33 +542,33 @@ class ZeroTrustValidator:
 
 ---
 
-## 📈 Monitoring và Analytics
+## 📈 Giám Sát và Phân Tích
 
-### 📊 Real-time Dashboard Metrics
+### 📊 Thống Kê Bảng Điều Khiển Thời Gian Thực
 
-#### Server Performance
-- **CPU Usage**: Theo dõi tải server realtime
-- **Memory Usage**: Giám sát memory consumption
-- **Network I/O**: Bandwidth usage và latency
-- **Connection Pool**: Active/idle connections
-- **Thread Pool**: Worker thread utilization
+#### Hiệu Năng Máy Chủ
+- **Sử Dụng CPU**: Theo dõi tải máy chủ thời gian thực
+- **Sử Dụng Bộ Nhớ**: Giám sát tiêu thụ bộ nhớ
+- **I/O Mạng**: Sử dụng băng thông và độ trễ
+- **Nhóm Kết Nối**: Kết nối hoạt động/nhàn rỗi
+- **Nhóm Luồng**: Sử dụng luồng worker
 
-#### Bot Network Statistics
-- **Geographic Distribution**: Bản đồ phân bố bot
-- **Operating System**: Thống kê OS targets
-- **Connection Quality**: Latency và packet loss
-- **Command Success Rate**: Tỷ lệ thành công lệnh
-- **Data Collection Volume**: Lượng data thu thập
+#### Thống Kê Mạng Bot
+- **Phân Phối Địa Lý**: Bản đồ phân bố bot
+- **Hệ Điều Hành**: Thống kê hệ điều hành mục tiêu
+- **Chất Lượng Kết Nối**: Độ trễ và mất gói tin
+- **Tỷ Lệ Thành Công Lệnh**: Tỷ lệ thành công lệnh
+- **Khối Lượng Thu Thập Dữ Liệu**: Lượng dữ liệu thu thập
 
-#### Security Monitoring
-- **Failed Authentication**: Số lần đăng nhập thất bại
-- **Suspicious Activities**: Phát hiện hành vi bất thường
-- **Threat Intelligence**: Cảnh báo IP đen
-- **Certificate Violations**: Lỗi chứng chỉ
+#### Giám Sát Bảo Mật
+- **Xác Thực Thất Bại**: Số lần đăng nhập thất bại
+- **Hoạt Động Đáng Ngờ**: Phát hiện hành vi bất thường
+- **Tình Báo Mối Đe Dọa**: Cảnh báo IP đen
+- **Vi Phạm Chứng Chỉ**: Lỗi chứng chỉ
 
-### 📋 Reporting System
+### 📋 Hệ Thống Báo Cáo
 
-#### Automated Reports
+#### Báo Cáo Tự Động
 ```python
 class ReportGenerator:
     def generate_daily_report(self):
@@ -584,11 +586,11 @@ class ReportGenerator:
 
 ---
 
-## 🔧 Customization và Extension
+## 🔧 Tùy Chỉnh và Mở Rộng
 
-### 🔌 Plugin Development
+### 🔌 Phát Triển Plugin
 
-#### Plugin Architecture
+#### Kiến Trúc Plugin
 ```python
 from abc import ABC, abstractmethod
 
@@ -612,7 +614,7 @@ class BasePlugin(ABC):
         """Dọn dẹp tài nguyên"""
         pass
 
-# Example Custom Plugin
+# Ví Dụ Plugin Tùy Chỉnh
 class CustomReconPlugin(BasePlugin):
     def initialize(self):
         self.scan_tools = ['nmap', 'masscan', 'rustscan']
@@ -622,7 +624,7 @@ class CustomReconPlugin(BasePlugin):
             return self.perform_advanced_scan(args['target'])
 ```
 
-#### Plugin Manager
+#### Trình Quản Lý Plugin
 ```python
 class PluginManager:
     def __init__(self):
@@ -639,16 +641,16 @@ class PluginManager:
             return self.plugins[plugin_name].execute(command, args)
 ```
 
-### 🎨 Custom Payload Development
+### 🎨 Phát Triển Payload Tùy Chỉnh
 
-#### Payload Template
+#### Mẫu Payload
 ```python
 class PayloadTemplate:
     def __init__(self):
         self.name = "custom_payload"
         self.version = "1.0"
         self.platform = ["windows", "linux"]
-        self.stealth_level = "high"
+        self.stealth_level = "cao"
     
     def pre_execution(self):
         """Thực hiện trước khi chạy payload"""
@@ -673,35 +675,35 @@ class PayloadTemplate:
 
 ---
 
-## 🛠️ Troubleshooting Guide
+## 🛠️ Hướng Dẫn Khắc Phục Sự Cố
 
-### ⚠️ Common Issues
+### ⚠️ Các Vấn Đề Thường Gặp
 
-#### 1. **SSL Connection Errors**
+#### 1. **Lỗi Kết Nối SSL**
 ```bash
-# Symptoms
+# Triệu chứng
 ERROR: SSL handshake failed
 ERROR: Certificate verification failed
 
-# Solutions
-1. Kiểm tra certificate validity:
+# Giải pháp
+1. Kiểm tra tính hợp lệ chứng chỉ:
    openssl x509 -in server_cert.pem -text -noout
 
-2. Verify time synchronization:
+2. Xác minh đồng bộ hóa thời gian:
    ntpdate -s time.nist.gov
 
-3. Check firewall settings:
+3. Kiểm tra cài đặt tường lửa:
    netstat -tulpn | grep :4444
 ```
 
-#### 2. **Thread Deadlock Issues**
+#### 2. **Vấn Đề Deadlock Luồng**
 ```python
-# Debug thread deadlocks
+# Gỡ lỗi deadlock luồng
 import threading
 import time
 
 def detect_deadlock():
-    """Phát hiện deadlock trong system"""
+    """Phát hiện deadlock trong hệ thống"""
     threads = threading.enumerate()
     for thread in threads:
         if thread.is_alive() and time.time() - thread.start_time > 300:
@@ -709,28 +711,27 @@ def detect_deadlock():
             print(f"Stack trace: {thread.get_stack_trace()}")
 ```
 
-#### 3. **Memory Leaks**
+#### 3. **Rò Rỉ Bộ Nhớ**
 ```python
 import psutil
 import gc
 
 def monitor_memory():
-    """Giám sát memory usage"""
-    process = psutil.Process()
-    memory_info = process.memory_info()
+    """Giám sát sử dụng bộ nhớ"""
+    process = psutil.Process()    memory_info = process.memory_info()
     
     if memory_info.rss > 1024 * 1024 * 1024:  # 1GB
-        print("High memory usage detected!")
-        gc.collect()  # Force garbage collection
+        print("Phát hiện sử dụng bộ nhớ cao!")
+        gc.collect()  # Buộc thu gom rác
         
-        # Log memory usage by object type
+        # Ghi log sử dụng bộ nhớ theo loại đối tượng
         import objgraph
         objgraph.show_most_common_types()
 ```
 
-### 🔍 Debug Mode
+### 🔍 Chế Độ Gỡ Lỗi
 
-#### Enable Verbose Logging
+#### Bật Ghi Log Chi Tiết
 ```python
 LOGGING_CONFIG = {
     'version': 1,
@@ -762,33 +763,33 @@ LOGGING_CONFIG = {
 
 ## 📚 Tài Liệu Tham Khảo
 
-### 📖 External Resources
+### 📖 Tài Nguyên Bên Ngoài
 
-#### Security Research Papers
-- **[MITRE ATT&CK Framework](https://attack.mitre.org/)**: Tactics, Techniques, and Procedures
-- **[NIST Cybersecurity Framework](https://www.nist.gov/cyberframework)**: Security best practices
-- **[OWASP Testing Guide](https://owasp.org/www-project-web-security-testing-guide/)**: Web application security testing
+#### Bài Báo Nghiên Cứu Bảo Mật
+- **[Khung MITRE ATT&CK](https://attack.mitre.org/)**: Chiến thuật, Kỹ thuật và Quy trình
+- **[Khung An ninh mạng NIST](https://www.nist.gov/cyberframework)**: Thực hành tốt nhất về bảo mật
+- **[Hướng dẫn Kiểm thử OWASP](https://owasp.org/www-project-web-security-testing-guide/)**: Kiểm thử bảo mật ứng dụng web
 
-#### Academic Publications
-- *"Botnet Detection Techniques"* - IEEE Security & Privacy
-- *"Command and Control Server Analysis"* - USENIX Security Symposium
-- *"Advanced Persistent Threats: Past, Present and Future"* - ACM Computing Surveys
+#### Xuất Bản Học Thuật
+- *"Kỹ thuật Phát hiện Botnet"* - IEEE Security & Privacy
+- *"Phân tích Máy chủ Command and Control"* - USENIX Security Symposium
+- *"Mối đe dọa Bền vững Nâng cao: Quá khứ, Hiện tại và Tương lai"* - ACM Computing Surveys
 
-#### Technical Standards
-- **RFC 8446**: The Transport Layer Security (TLS) Protocol Version 1.3
-- **RFC 5246**: The Transport Layer Security (TLS) Protocol Version 1.2
-- **FIPS 140-2**: Security Requirements for Cryptographic Modules
+#### Tiêu Chuẩn Kỹ Thuật
+- **RFC 8446**: Giao thức Transport Layer Security (TLS) Phiên bản 1.3
+- **RFC 5246**: Giao thức Transport Layer Security (TLS) Phiên bản 1.2
+- **FIPS 140-2**: Yêu cầu Bảo mật cho Mô-đun Mã hóa
 
-### 🛡️ Defensive Resources
+### 🛡️ Tài Nguyên Phòng Thủ
 
-#### Detection Rules
+#### Quy Tắc Phát Hiện
 ```yaml
-# Snort Rule Example
-alert tcp any any -> any 4444 (msg:"Possible C2C Botnet Traffic"; \
+# Ví dụ Quy tắc Snort
+alert tcp any any -> any 4444 (msg:"Có thể là Lưu lượng C2C Botnet"; \
   content:"C2C-PROTO"; depth:8; sid:1000001; rev:1;)
 
-# Sigma Rule Example
-title: C2C Botnet Communication
+# Ví dụ Quy tắc Sigma
+title: Giao tiếp C2C Botnet
 detection:
   selection:
     destination_port: 4444
@@ -796,12 +797,13 @@ detection:
   condition: selection
 ```
 
-#### YARA Rules
+#### Quy Tắc YARA
+```yara
 ```yara
 rule C2C_Botnet_Client {
     meta:
-        description = "Detects C2C Botnet Client"
-        author = "Security Research Team"
+        description = "Phát hiện Client C2C Botnet"
+        author = "Nhóm Nghiên cứu Bảo mật"
         
     strings:
         $c2c_string = "C2C-PROTO"
@@ -815,93 +817,96 @@ rule C2C_Botnet_Client {
 
 ---
 
-## 🎯 Future Roadmap
+## 🎯 Lộ Trình Tương Lai
 
-### 🚀 Planned Features (v3.0)
+### 🚀 Các Tính Năng Dự Kiến (Phiên bản 3.0)
 
-#### Enhanced Security
-- **Quantum-resistant cryptography** implementation
-- **Hardware Security Module (HSM)** integration
-- **Zero-knowledge authentication** protocols
-- **Blockchain-based C2C infrastructure**
+#### Bảo Mật Nâng Cao
+- Ứng dụng **thuật toán mã hóa chống tấn công lượng tử**
+- Tích hợp **Mô-đun Bảo mật Phần cứng (HSM)**
+- Sử dụng **giao thức xác thực không tiết lộ dữ liệu (Zero-knowledge)**
+- Xây dựng hạ tầng **giao tiếp giữa các thiết bị dựa trên công nghệ Blockchain**
 
-#### Advanced Analytics
-- **Machine Learning** threat detection
-- **Behavioral analysis** engine
-- **Predictive security** modeling
-- **Automated incident response**
+#### Phân Tích Thông Minh
+- Phát hiện mối đe dọa bằng **các mô hình học máy**
+- Phân tích hành vi người dùng thông qua **công cụ chuyên biệt**
+- Xây dựng mô hình **dự đoán rủi ro bảo mật**
+- **Tự động hóa phản ứng sự cố**
 
-#### Platform Expansion
-- **Mobile targets** (Android/iOS)
-- **IoT device** support
-- **Cloud infrastructure** integration
-- **Container** environments
+#### Mở Rộng Nền Tảng
+- Hỗ trợ **thiết bị di động** (Android và iOS)
+- Tương thích với **các thiết bị IoT**
+- Tích hợp với **hạ tầng điện toán đám mây**
+- Hỗ trợ **môi trường container hóa** (Docker, Kubernetes,...)
 
-#### Research Integration
-- **MITRE ATT&CK** framework mapping
-- **Cyber Threat Intelligence** feeds
-- **Automated payload** generation
-- **Red team automation**
+#### Tích Hợp Nghiên Cứu & Tình Báo An Ninh
+- Ánh xạ các kỹ thuật với **khung MITRE ATT&CK**
+- Tích hợp **nguồn dữ liệu tình báo về mối đe dọa**
+- **Tự động tạo payload** phục vụ thử nghiệm và mô phỏng tấn công
+- **Tự động hóa hoạt động đội đỏ (Red Team)** để kiểm tra lỗ hổng
 
-### 📈 Performance Goals
+### 📈 Mục Tiêu Hiệu Năng
 
-- **10,000+ concurrent bots** support
-- **Sub-second command** execution
-- **99.9% uptime** reliability
-- **Real-time analytics** processing
+- Hỗ trợ **trên 10.000 bot hoạt động đồng thời**
+- **Xử lý lệnh tức thì** với độ trễ dưới 1 giây
+- **Đảm bảo độ ổn định 99.9% uptime**
+- Phân tích dữ liệu **theo thời gian thực**
+
 
 ---
 
-## 🤝 Contributing
+## 🤝 Đóng Góp
 
-### 👥 Development Team
+### 👥 Nhóm Phát Triển
 
-| Role | Responsibilities |
-|------|------------------|
-| **Lead Developer** | Architecture design, core development |
-| **Security Engineer** | Threat modeling, security implementation |
-| **DevOps Engineer** | Infrastructure, deployment automation |
-| **QA Engineer** | Testing, quality assurance |
+| Vai trò               | Trách nhiệm                              |
+|------------------------|-------------------------------------------|
+| **Lập trình viên chính**     | Thiết kế kiến trúc, phát triển lõi              |
+| **Kỹ sư bảo mật**            | Mô hình hóa mối đe dọa, triển khai bảo mật       |
+| **Kỹ sư DevOps**             | Hạ tầng, tự động hóa triển khai                 |
+| **Kỹ sư kiểm thử (QA)**      | Kiểm thử, đảm bảo chất lượng                    |
 
-### 📋 Contribution Guidelines
 
-#### Code Standards
+### 📋 Hướng Dẫn Đóng Góp
+
+#### Tiêu Chuẩn Mã Nguồn
 ```python
-# Python Code Style (PEP 8 + Black)
-# Type hints required
+# Phong cách mã Python (PEP 8 + Black)
+# Yêu cầu type hints
 def process_bot_command(bot_id: str, command: Dict[str, Any]) -> CommandResult:
-    """Process command from bot with comprehensive error handling.
+    """Xử lý lệnh từ bot với xử lý lỗi toàn diện.
     
-    Args:
-        bot_id: Unique identifier for the bot
-        command: Command dictionary with type and parameters
+    Tham số:
+        bot_id: Định danh duy nhất của bot
+        command: Từ điển lệnh với kiểu và tham số
         
-    Returns:
-        CommandResult object with execution status and data
+    Trả về:
+        Đối tượng CommandResult với trạng thái thực thi và dữ liệu
         
-    Raises:
-        InvalidBotError: If bot_id is not recognized
-        CommandValidationError: If command format is invalid
+    Ngoại lệ:
+        InvalidBotError: Nếu bot_id không được nhận dạng
+        CommandValidationError: Nếu định dạng lệnh không hợp lệ
     """
     pass
 ```
 
-#### Commit Message Format
+#### Định Dạng Tin Nhắn Commit
 ```
-feat(module): add new functionality
-fix(security): resolve thread safety issue  
-docs(api): update API documentation
-test(payload): add unit tests for payload module
-refactor(core): improve code organization
+feat(module): thêm tính năng mới  
+fix(security): khắc phục vấn đề an toàn luồng  
+docs(api): cập nhật tài liệu API  
+test(payload): thêm unit test cho mô-đun payload  
+refactor(core): cải tổ tổ chức mã nguồn  
+
 ```
 
-#### Pull Request Process
-1. **Fork** repository và tạo feature branch
-2. **Implement** changes với comprehensive tests
-3. **Update** documentation nếu cần thiết
-4. **Submit** pull request với detailed description
-5. **Code review** với ít nhất 2 approvals
-6. **Merge** sau khi pass tất cả checks
+#### Quy Trình Pull Request
+1. **Fork** repository và tạo nhánh tính năng
+2. **Triển khai** thay đổi với kiểm thử toàn diện
+3. **Cập nhật** tài liệu nếu cần thiết
+4. **Gửi** pull request với mô tả chi tiết
+5. **Đánh giá mã** với ít nhất 2 phê duyệt
+6. **Hợp nhất** sau khi vượt qua tất cả kiểm tra
 
 ---
 

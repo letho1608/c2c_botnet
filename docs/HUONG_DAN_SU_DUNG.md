@@ -33,13 +33,7 @@ python core/console.py
 # Server sẽ tự động khởi động với console interface
 ```
 
-#### Method 3: Web Interface
-```powershell
-# Start with web dashboard
-python gui/web_interface.py
-```
-
-#### Method 4: Custom Configuration
+#### Method 3: Custom Configuration
 ```python
 # custom_server.py
 from core.server import ThreadSafeServer
@@ -167,43 +161,6 @@ C2C> stats
 - Uptime: 4h 32m
 - Success rate: 98.5%
 ```
-
-### 🌐 Web Dashboard
-
-#### Accessing Web Interface
-```powershell
-# Start web interface
-python gui/web_interface.py
-
-# Access via browser
-http://localhost:8080
-```
-
-#### Dashboard Features
-
-**📊 Main Dashboard:**
-- Real-time client status
-- Geographic map of connected bots
-- Performance metrics
-- Recent activity timeline
-
-**🤖 Client Management:**
-- Client list with detailed info
-- Bulk operations
-- Client grouping
-- Command history
-
-**📈 Analytics:**
-- Traffic analysis
-- Success/failure rates
-- Geographic distribution
-- Time-based statistics
-
-**⚙️ Settings:**
-- Server configuration
-- Security settings
-- Notification preferences
-- Export/import data
 
 ---
 

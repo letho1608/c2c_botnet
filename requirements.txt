@@ -9,7 +9,12 @@ psutil==5.8.0
 lru-dict==1.1.7
 cryptography==36.0.1
 
-# Additional dependencies for new modules
+# GUI Dependencies (PyQt5 only)
+PyQt5>=5.15.0
+PyQt5-tools>=5.15.0
+qtsass>=0.3.0
+
+# Core dependencies for modules
 requests>=2.25.1
 pynacl>=1.4.0
 keyring>=23.0.0
@@ -22,3 +27,80 @@ opencv-python>=4.5.0
 pycryptodome>=3.10.1
 numpy>=1.21.0
 requests-toolbelt>=0.9.1
+# AI và Machine Learning
+tensorflow>=2.13.0
+torch>=2.0.0
+transformers>=4.30.0
+scikit-learn>=1.3.0
+numpy>=1.24.0
+pandas>=2.0.0
+opencv-python>=4.8.0
+
+# Deep Learning và Neural Networks
+keras>=2.13.0
+pytorch-lightning>=2.0.0
+xgboost>=2.0.0
+lightgbm>=4.0.0
+
+# Natural Language Processing
+spacy>=3.6.0
+nltk>=3.8.1
+sentence-transformers>=2.2.0
+
+# Computer Vision
+ultralytics>=8.0.0
+pillow>=10.0.0
+
+# Reinforcement Learning
+gym>=0.29.0
+stable-baselines3>=2.0.0
+
+# Time Series và Anomaly Detection
+statsmodels>=0.14.0
+pyod>=1.1.0
+prophet>=1.1.4
+
+# Graph Neural Networks
+networkx>=3.1
+torch-geometric>=2.3.0
+
+# Optimization
+optuna>=3.3.0
+hyperopt>=0.2.7
+
+# Distributed Computing
+ray>=2.6.0
+dask>=2023.7.0
+
+# Monitoring và Metrics
+wandb>=0.15.0
+mlflow>=2.5.0
+
+# Advanced Security
+cryptography>=41.0.0
+pycryptodome>=3.18.0
+
+# Performance Optimization
+numba>=0.58.0
+cython>=3.0.0
+
+# Async và Concurrency
+asyncio-mqtt>=0.13.0
+aiofiles>=23.2.0
+aioredis>=2.0.0
+
+# Database và Caching
+redis>=4.6.0
+pymongo>=4.4.0
+sqlalchemy>=2.0.0
+
+# API và Web
+fastapi>=0.101.0
+uvicorn>=0.23.0
+websockets>=11.0.0
+
+# Utilities
+pyyaml>=6.0.1
+python-dotenv>=1.0.0
+click>=8.1.0
+tqdm>=4.66.0
