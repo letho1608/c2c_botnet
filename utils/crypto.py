@@ -5,6 +5,7 @@ import json
 import logging
 import time
 from typing import Dict, Optional, Tuple, Union, Any
+from contextlib import contextmanager
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -244,8 +245,6 @@ class Crypto:
             raise
 
     def establish_session(self, peer_id: str, peer_public_key: str) -> str:
-        if not peer_id or not peer_public_key:
-            raise CryptoError("Invalid peer ID or public key")
         """Establish encrypted session with peer
 
         Args:
@@ -255,6 +254,8 @@ class Crypto:
         Returns:
             str: Encrypted session key
         """
+        if not peer_id or not peer_public_key:
+            raise CryptoError("Invalid peer ID or public key")
         try:
             session_key = os.urandom(32)
             self.session_keys[peer_id] = session_key
@@ -280,14 +281,14 @@ class Crypto:
             raise
 
     def receive_session_key(self, peer_id: str, encrypted_key: str) -> None:
-        if not peer_id or not encrypted_key:
-            raise CryptoError("Invalid peer ID or encrypted key")
         """Receive and decrypt session key from peer
 
         Args:
             peer_id (str): Unique peer identifier  
             encrypted_key (str): Base64 encoded encrypted session key
         """
+        if not peer_id or not encrypted_key:
+            raise CryptoError("Invalid peer ID or encrypted key")
         try:
             encrypted = base64.b64decode(encrypted_key)
             session_key = self.private_key.decrypt(
@@ -305,8 +306,6 @@ class Crypto:
             raise
 
     def derive_key(self, password: str, salt: Optional[bytes] = None) -> Tuple[bytes, bytes]:
-        if not password:
-            raise CryptoError("Empty password provided")
         """Derive key from password
 
         Args:
@@ -316,6 +315,8 @@ class Crypto:
         Returns:
             Tuple[bytes, bytes]: (key, salt) tuple
         """
+        if not password:
+            raise CryptoError("Empty password provided")
         try:
             if not salt:
                 salt = os.urandom(16)
@@ -336,8 +337,6 @@ class Crypto:
             raise
 
     def verify_key(self, password: str, key: bytes, salt: bytes) -> bool:
-        if not password or not key or not salt:
-            raise CryptoError("Invalid password, key or salt")
         """Verify password against key
 
         Args:
@@ -348,6 +347,8 @@ class Crypto:
         Returns:
             bool: True if password matches key
         """
+        if not password or not key or not salt:
+            raise CryptoError("Invalid password, key or salt")
         try:
             kdf = PBKDF2HMAC(
                 algorithm=hashes.SHA256(),
@@ -498,17 +499,13 @@ class Crypto:
                             raise CryptoError("Invalid padding")
                         # Verify padding bytes are consistent
                         if not all(x == padding for x in final_chunk[-padding:]):
-                            raise CryptoError("Inconsistent padding")
-                        out_file.write(final_chunk[:-padding])
+                            raise CryptoError("Invalid padding bytes")
+                        # Remove padding
+                        final_chunk = final_chunk[:-padding]
+                        out_file.write(final_chunk)
 
             return True
 
-        except (IOError, InvalidKey) as e:
-            self.logger.error(f"File decryption I/O error: {str(e)}")
-            return False
-        except CryptoError as e:
-            self.logger.error(f"Decryption validation error: {str(e)}")
-            return False
         except Exception as e:
-            self.logger.exception("Unexpected error during file decryption")
+            self.logger.error(f"Large file decryption error: {str(e)}")
             return False
