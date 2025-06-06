@@ -10,6 +10,7 @@ from .payload_builder import PayloadBuilderWidget
 from .network_scanner import NetworkScannerWidget
 from .logs import LogsWidget
 from .settings import SettingsWidget
+from .advanced_features_control import AdvancedFeaturesWidget
 
 __all__ = [
     "ModernSidebar",
@@ -19,5 +20,6 @@ __all__ = [
     "PayloadBuilderWidget",
     "NetworkScannerWidget",
     "LogsWidget",
-    "SettingsWidget"
+    "SettingsWidget",
+    "AdvancedFeaturesWidget"
 ]
