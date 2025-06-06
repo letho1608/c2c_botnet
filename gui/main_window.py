@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Main Window for C2C Botnet Management System
+Main Window for C2C Botnet Management System - Integrated Version
 """
 
 import sys
@@ -59,7 +59,7 @@ def safe_import_core_modules():
 
 
 class MainWindow(QMainWindow):
-    """Main window cho C2C Botnet Management System"""
+    """Main window cho C2C Botnet Management System - Integrated"""
     
     def __init__(self):
         super().__init__()
@@ -73,10 +73,20 @@ class MainWindow(QMainWindow):
         self.exploit_builder = None
         self.network_scanner = None
         
+        # Integrated components
+        self.ai_manager = None
+        self.remote_controller = None
+        
         # UI Components
         self.sidebar = None
         self.stacked_widget = None
         self.pages = {}
+        
+        # Integration status
+        self.integration_status = {
+            'ai_active': False,
+            'remote_active': False
+        }
         
         # Initialize UI
         self.init_core_components()
@@ -105,10 +115,40 @@ class MainWindow(QMainWindow):
             print("Core components initialized successfully")
         except Exception as e:
             print(f"Error initializing core components: {e}")
+            
+    def set_ai_manager(self, ai_manager):
+        """Set AI manager instance"""
+        self.ai_manager = ai_manager
+        self.integration_status['ai_active'] = True
+        print("🤖 AI Manager integrated into GUI")
+        
+        # Pass AI manager to relevant pages
+        if 'dashboard' in self.pages:
+            if hasattr(self.pages['dashboard'], 'set_ai_manager'):
+                self.pages['dashboard'].set_ai_manager(ai_manager)
+                
+        if 'bots' in self.pages:
+            if hasattr(self.pages['bots'], 'set_ai_manager'):
+                self.pages['bots'].set_ai_manager(ai_manager)
+                
+        if 'monitoring' in self.pages:
+            if hasattr(self.pages['monitoring'], 'set_ai_manager'):
+                self.pages['monitoring'].set_ai_manager(ai_manager)
+                
+    def set_remote_controller(self, remote_controller):
+        """Set remote controller instance"""
+        self.remote_controller = remote_controller
+        self.integration_status['remote_active'] = True
+        print("🔐 Remote Controller integrated into GUI")
+        
+        # Pass remote controller to relevant pages
+        if 'settings' in self.pages:
+            if hasattr(self.pages['settings'], 'set_remote_controller'):
+                self.pages['settings'].set_remote_controller(remote_controller)
     
     def init_ui(self):
         """Khởi tạo giao diện người dùng"""
-        self.setWindowTitle("C2C Botnet Management Platform")
+        self.setWindowTitle("C2C Botnet Management Platform - Integrated")
         self.setWindowIcon(QIcon("assets/icon.png") if os.path.exists("assets/icon.png") else QIcon())
         self.setGeometry(100, 100, 1400, 900)
         
@@ -187,7 +227,7 @@ class MainWindow(QMainWindow):
             print(f"Error initializing pages: {e}")
     
     def init_status_bar(self):
-        """Khởi tạo status bar"""
+        """Khởi tạo status bar with integration status"""
         self.status_bar = self.statusBar()
         
         # Server status
@@ -210,6 +250,26 @@ class MainWindow(QMainWindow):
             }
         """)
         
+        # AI status
+        self.ai_status = QLabel("AI: Offline")
+        self.ai_status.setStyleSheet("""
+            QLabel {
+                color: #e74c3c;
+                font-weight: bold;
+                padding: 5px;
+            }
+        """)
+        
+        # Remote Control status
+        self.remote_status = QLabel("Remote: Offline")
+        self.remote_status.setStyleSheet("""
+            QLabel {
+                color: #e74c3c;
+                font-weight: bold;
+                padding: 5px;
+            }
+        """)
+        
         # Time
         self.time_label = QLabel()
         self.time_label.setStyleSheet("""
@@ -223,6 +283,8 @@ class MainWindow(QMainWindow):
         # Add to status bar
         self.status_bar.addWidget(self.server_status)
         self.status_bar.addWidget(self.bot_count)
+        self.status_bar.addWidget(self.ai_status)
+        self.status_bar.addWidget(self.remote_status)
         self.status_bar.addPermanentWidget(self.time_label)
         
         # Timer để update status
@@ -231,7 +293,7 @@ class MainWindow(QMainWindow):
         self.status_timer.start(1000)  # Update mỗi giây
         
     def init_menu_bar(self):
-        """Khởi tạo menu bar"""
+        """Khởi tạo menu bar with integration options"""
         menubar = self.menuBar()
         
         # File menu
@@ -269,6 +331,34 @@ class MainWindow(QMainWindow):
         server_menu.addAction(start_server_action)
         server_menu.addAction(stop_server_action)
         server_menu.addAction(restart_server_action)
+        
+        # AI menu
+        ai_menu = menubar.addMenu('AI')
+        
+        ai_status_action = QAction('AI Status', self)
+        ai_status_action.triggered.connect(self.show_ai_status)
+        
+        ai_insights_action = QAction('AI Insights', self)
+        ai_insights_action.triggered.connect(self.show_ai_insights)
+        
+        ai_train_action = QAction('Train Models', self)
+        ai_train_action.triggered.connect(self.train_ai_models)
+        
+        ai_menu.addAction(ai_status_action)
+        ai_menu.addAction(ai_insights_action)
+        ai_menu.addAction(ai_train_action)
+        
+        # Remote menu
+        remote_menu = menubar.addMenu('Remote')
+        
+        remote_status_action = QAction('Remote Status', self)
+        remote_status_action.triggered.connect(self.show_remote_status)
+        
+        remote_admins_action = QAction('Manage Admins', self)
+        remote_admins_action.triggered.connect(self.manage_remote_admins)
+        
+        remote_menu.addAction(remote_status_action)
+        remote_menu.addAction(remote_admins_action)
         
         # Tools menu
         tools_menu = menubar.addMenu('Tools')
@@ -362,6 +452,18 @@ class MainWindow(QMainWindow):
         # Start server in background thread
         threading.Thread(target=start_in_background, daemon=True).start()
         
+    def update_integration_status(self, status_info):
+        """Update integration status from main app"""
+        self.integration_status.update(status_info)
+        
+        # Update AI reference if provided
+        if 'ai_manager' in status_info and status_info['ai_manager']:
+            self.set_ai_manager(status_info['ai_manager'])
+            
+        # Update remote controller reference if provided
+        if 'remote_controller' in status_info and status_info['remote_controller']:
+            self.set_remote_controller(status_info['remote_controller'])
+        
     def change_page(self, page_name):
         """Thay đổi page hiện tại"""
         if page_name in self.pages:
@@ -372,7 +474,7 @@ class MainWindow(QMainWindow):
                 print(f"Changed to page: {page_name}")
                 
     def update_status_bar(self):
-        """Cập nhật status bar"""
+        """Cập nhật status bar với integration status"""
         # Update time
         current_time = time.strftime("%H:%M:%S")
         self.time_label.setText(f"Time: {current_time}")
@@ -406,6 +508,46 @@ class MainWindow(QMainWindow):
                 self.bot_count.setText("Bots: 0")
         else:
             self.bot_count.setText("Bots: 0")
+            
+        # Update AI status
+        if self.integration_status['ai_active'] and self.ai_manager:
+            self.ai_status.setText("AI: Online")
+            self.ai_status.setStyleSheet("""
+                QLabel {
+                    color: #9b59b6;
+                    font-weight: bold;
+                    padding: 5px;
+                }
+            """)
+        else:
+            self.ai_status.setText("AI: Offline")
+            self.ai_status.setStyleSheet("""
+                QLabel {
+                    color: #e74c3c;
+                    font-weight: bold;
+                    padding: 5px;
+                }
+            """)
+            
+        # Update Remote status
+        if self.integration_status['remote_active'] and self.remote_controller:
+            self.remote_status.setText("Remote: Online")
+            self.remote_status.setStyleSheet("""
+                QLabel {
+                    color: #f39c12;
+                    font-weight: bold;
+                    padding: 5px;
+                }
+            """)
+        else:
+            self.remote_status.setText("Remote: Offline")
+            self.remote_status.setStyleSheet("""
+                QLabel {
+                    color: #e74c3c;
+                    font-weight: bold;
+                    padding: 5px;
+                }
+            """)
                 
     def update_real_time_data(self):
         """Cập nhật dữ liệu real-time cho các pages"""
@@ -474,6 +616,94 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, 'Error', f'Failed to restart server:\n{str(e)}')
             
+    # AI Menu Actions
+    def show_ai_status(self):
+        """Show AI system status"""
+        if not self.ai_manager:
+            QMessageBox.warning(self, 'AI Status', 'AI system is not available!')
+            return
+            
+        try:
+            status = self.ai_manager.get_system_status()
+            status_text = f"""
+            <h3>AI System Status</h3>
+            <p><b>AI Available:</b> {'✅ Yes' if status['ai_available'] else '❌ No'}</p>
+            <p><b>Modules Loaded:</b> {'✅ Yes' if status['modules_loaded'] else '❌ No'}</p>
+            <p><b>Models Trained:</b> {status['models_trained']}</p>
+            <p><b>Total Predictions:</b> {status['total_predictions']}</p>
+            <p><b>Average Accuracy:</b> {status['average_accuracy']:.2%}</p>
+            <p><b>Last Update:</b> {status['last_update']}</p>
+            """
+            QMessageBox.information(self, 'AI Status', status_text)
+        except Exception as e:
+            QMessageBox.critical(self, 'Error', f'Failed to get AI status:\n{str(e)}')
+            
+    def show_ai_insights(self):
+        """Show AI insights"""
+        if not self.ai_manager:
+            QMessageBox.warning(self, 'AI Insights', 'AI system is not available!')
+            return
+            
+        try:
+            insights = self.ai_manager.get_recent_insights(5)
+            if not insights:
+                QMessageBox.information(self, 'AI Insights', 'No insights available yet.')
+                return
+                
+            insights_text = "<h3>Recent AI Insights</h3>"
+            for insight in insights:
+                insights_text += f"""
+                <p><b>{insight['title']}</b> ({insight['priority']})</p>
+                <p>{insight['description']}</p>
+                <p><i>Recommendation: {insight['recommendation']}</i></p>
+                <hr>
+                """
+            QMessageBox.information(self, 'AI Insights', insights_text)
+        except Exception as e:
+            QMessageBox.critical(self, 'Error', f'Failed to get AI insights:\n{str(e)}')
+            
+    def train_ai_models(self):
+        """Train AI models"""
+        if not self.ai_manager:
+            QMessageBox.warning(self, 'Train Models', 'AI system is not available!')
+            return
+            
+        try:
+            if self.ai_manager.train_models():
+                QMessageBox.information(self, 'Train Models', 'AI model training started successfully!')
+            else:
+                QMessageBox.warning(self, 'Train Models', 'Failed to start AI model training!')
+        except Exception as e:
+            QMessageBox.critical(self, 'Error', f'Failed to train AI models:\n{str(e)}')
+            
+    # Remote Control Menu Actions
+    def show_remote_status(self):
+        """Show remote control status"""
+        if not self.remote_controller:
+            QMessageBox.warning(self, 'Remote Status', 'Remote control is not available!')
+            return
+            
+        try:
+            status_text = f"""
+            <h3>Remote Control Status</h3>
+            <p><b>Status:</b> {'✅ Online' if self.remote_controller.running else '❌ Offline'}</p>
+            <p><b>Host:</b> {self.remote_controller.host}</p>
+            <p><b>Port:</b> {self.remote_controller.port}</p>
+            <p><b>Active Sessions:</b> {len(self.remote_controller.sessions)}</p>
+            <p><b>Registered Admins:</b> {len(self.remote_controller.admins)}</p>
+            """
+            QMessageBox.information(self, 'Remote Status', status_text)
+        except Exception as e:
+            QMessageBox.critical(self, 'Error', f'Failed to get remote status:\n{str(e)}')
+            
+    def manage_remote_admins(self):
+        """Manage remote admins"""
+        if not self.remote_controller:
+            QMessageBox.warning(self, 'Manage Admins', 'Remote control is not available!')
+            return
+            
+        QMessageBox.information(self, 'Manage Admins', 'Admin management interface coming soon!')
+            
     def open_console(self):
         """Mở console window"""
         QMessageBox.information(self, 'Console', 'Console feature coming soon!')
@@ -484,65 +714,65 @@ class MainWindow(QMainWindow):
         
     def show_about(self):
         """Hiển thị about dialog"""
-        QMessageBox.about(self, 'About', """
+        ai_status = "✅ Active" if self.integration_status['ai_active'] else "❌ Inactive"
+        remote_status = "✅ Active" if self.integration_status['remote_active'] else "❌ Inactive"
+        
+        QMessageBox.about(self, 'About', f"""
         <h3>C2C Botnet Management Platform</h3>
-        <p>Version 1.0.0</p>
+        <p>Version 2.0.0 - Integrated Edition</p>
         <p>A comprehensive botnet management system for security research and education.</p>
+        <p><b>Integrated Components:</b></p>
+        <p>• AI System: {ai_status}</p>
+        <p>• Remote Control: {remote_status}</p>
+        <p>• Advanced Features: ✅ Active</p>
         <p><b>For educational and research purposes only!</b></p>
         """)
         
     def show_help(self):
         """Hiển thị help"""
         QMessageBox.information(self, 'Help', """
-        <h3>Quick Help</h3>
+        <h3>Quick Help - Integrated Edition</h3>
         <p><b>Dashboard:</b> Overview of system status</p>
-        <p><b>Bot Management:</b> Control connected bots</p>
+        <p><b>Bot Management:</b> Control connected bots with advanced features</p>
         <p><b>Monitoring:</b> Real-time system monitoring</p>
-        <p><b>Payload Builder:</b> Create custom payloads</p>
-        <p><b>Network Scanner:</b> Scan and discover targets</p>
-        <p><b>Logs:</b> View system logs and activity</p>
-        <p><b>Settings:</b> Configure system settings</p>
+        <p><b>AI System:</b> Intelligent optimization and insights</p>
+        <p><b>Remote Control:</b> Secure remote administration</p>
+        <p><b>Advanced Features:</b> Screen streaming, audio recording, file harvesting</p>
         """)
         
     def closeEvent(self, event):
         """Xử lý khi đóng ứng dụng"""
         reply = QMessageBox.question(
-            self, 'Exit',
-            'Are you sure you want to exit?\nServer will be stopped.',
+            self, 'Exit Application',
+            'Are you sure you want to exit?\nAll running processes will be stopped.',
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
         
         if reply == QMessageBox.Yes:
-            # Stop server
-            if self.server and hasattr(self.server, 'running') and self.server.running:
-                try:
+            # Stop components
+            try:
+                if self.server and hasattr(self.server, 'running') and self.server.running:
                     self.server.stop()
-                    print("Server stopped")
-                except:
-                    pass
                     
-            print("Application closing...")
+                print("Application closing...")
+            except Exception as e:
+                print(f"Error during shutdown: {e}")
+                
             event.accept()
         else:
             event.ignore()
 
-
 def main():
-    """Main function để test"""
+    """Main function - kept for standalone testing"""
     app = QApplication(sys.argv)
-    app.setApplicationName("C2C Botnet Management")
-    app.setApplicationVersion("1.0.0")
-    
-    # Set application icon
-    if os.path.exists("assets/icon.png"):
-        app.setWindowIcon(QIcon("assets/icon.png"))
+    app.setApplicationName("C2C Botnet Management System")
+    app.setApplicationVersion("2.0.0")
     
     window = MainWindow()
     window.show()
     
-    sys.exit(app.exec_())
+    return app.exec_()
 
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    sys.exit(main())
